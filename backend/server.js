@@ -1,11 +1,16 @@
  require('dotenv').config();
- const express = require('express');
- const session = require('express-session');
- const passport = require('./middleware/passport');
- const { sequelize } = require('./models');
+const express = require('express');
+const session = require('express-session');
+const passport = require('./middleware/passport');
+const cors = require('cors');
+const { sequelize } = require('./models');
 
- const app = express();
- app.use(express.json());
+const app = express();
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+app.use(express.json());
  app.use(session({ secret: process.env.SESSION_SECRET, resave:false, saveUninitialized:false }));
  app.use(passport.initialize());
  app.use(passport.session());

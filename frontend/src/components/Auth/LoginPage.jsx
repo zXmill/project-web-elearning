@@ -1,13 +1,18 @@
 import React from 'react';
-export default function LoginPage(){
-  return(
-    <div className="flex h-screen justify-center items-center bg-gray-50">
-      <div className="bg-white p-6 rounded-2xl shadow-md">
-        <h2 className="text-2xl font-bold mb-4">Login</h2>
-        <a href="http://localhost:3000/api/auth/google" className="flex items-center px-4 py-2 border rounded-xl hover:bg-gray-100">
-          <img src="/google-logo.png" alt="Google" className="w-6 h-6 mr-2" />Login with Google
-        </a>
-      </div>
-    </div>
+import { Navigate } from 'react-router-dom';
+import LoginHeader from '../Auth/LoginHeader';
+import LoginForm from '../Auth/LoginForm';
+
+export default function LoginPage() {
+  const isAuthenticated = !!localStorage.getItem('token');
+  if (isAuthenticated) return <Navigate to="/" replace />;
+  
+  return (
+    <main className="w-full min-h-screen bg-neutral-100">
+      <LoginHeader />
+      <section className="flex gap-24 items-center pt-16 mx-auto my-0 w-full h-[898px] max-w-[1323px] max-md:px-5 max-md:py-10 max-md:max-w-[800px] max-sm:p-5">
+        <LoginForm />
+      </section>
+    </main>
   );
 }
