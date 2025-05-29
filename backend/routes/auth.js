@@ -1,14 +1,21 @@
-const router = require('express').Router();
-const ctrl = require('../controllers/authController');
-const passport = require('passport');
+const express = require('express');
+const router = express.Router();
+const passport = require('passport'); // <-- Tambahkan ini
+const authController = require('../controllers/authController');
 
-router.get('/google', ctrl.googleAuth);
-router.get('/google/callback', 
-  passport.authenticate('google', { failureRedirect: '/login' }),
-  (req, res) => {
-    // Successful authentication, redirect home.
-    res.redirect('/');
-  }
+// Google Auth Routes
+router.get(
+  '/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
 );
+
+router.get(
+  '/google/callback',
+  passport.authenticate('google', { session: false }),
+  authController.googleLogin
+);
+
+// Local Auth Routes
+router.post('/login', authController.localLogin);
 
 module.exports = router;
