@@ -30,11 +30,43 @@ module.exports = (sequelize, DataTypes) => {
     role: {
       type: DataTypes.ENUM('user', 'admin'),
       defaultValue: 'user'
+    },
+    profilePicture: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    passwordResetToken: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    passwordResetExpires: {
+      type: DataTypes.DATE,
+      allowNull: true,
     }
   }, {
     sequelize,
     modelName: 'User',
   });
+
+  User.associate = (models) => {
+    // User can be enrolled in many courses through Enrollment
+    User.belongsToMany(models.Course, {
+      through: models.Enrollment, // Specify the join model
+      foreignKey: 'userId',
+      otherKey: 'courseId',
+      as: 'enrolledCourses',
+    });
+    // User has many direct enrollment records
+    User.hasMany(models.Enrollment, {
+      foreignKey: 'userId',
+      as: 'enrollments',
+    });
+    // User has many progress records
+    User.hasMany(models.UserProgress, {
+      foreignKey: 'userId',
+      as: 'progressRecords',
+    });
+  };
 
   return User;
 };

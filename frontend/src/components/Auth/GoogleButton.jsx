@@ -1,14 +1,19 @@
 import React from "react";
 import { GoogleIcon } from '../Common/Icons';
 
-const GoogleButton = () => {
-  return (    <a
-      href="http://localhost:3001/api/auth/google"
-      className="box-border flex gap-3.5 justify-center items-center px-6 py-5 w-full rounded-xl border border-gray-100 border-solid bg-neutral-100 no-underline hover:bg-neutral-200"
+// Added className prop to allow for additional styling from parent
+const GoogleButton = ({ className = '' }) => { 
+  // Reverted to original OAuth URL
+  const googleAuthUrl = 'http://localhost:3001/api/auth/google';
+
+  return (
+    <a
+      href={googleAuthUrl} 
+      className={`box-border flex gap-3 justify-center items-center p-3 md:p-4 w-full rounded-md border border-teraplus-text-default bg-teraplus-primary no-underline hover:bg-teraplus-primary-hover focus:outline-none focus:ring-2 focus:ring-teraplus-accent focus:ring-opacity-50 transition-colors ${className}`} // White bg, black border, light gray hover, teal focus
     >
-      <GoogleIcon />
-      <span className="text-lg leading-7 text-neutral-800 max-sm:text-base">
-        Login with Google
+      <GoogleIcon className="w-5 h-5 md:w-6 md:h-6" />
+      <span className="text-sm md:text-base font-medium text-teraplus-text-default"> {/* Black text on white bg */}
+        Masuk dengan Google
       </span>
     </a>
   );

@@ -8,11 +8,27 @@ passport.use(new GoogleStrategy({
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: 'http://localhost:3001/api/auth/google/callback'
 }, async (_,__, profile, done) => {
-  const [user] = await User.findOrCreate({
-    where: { googleId: profile.id },
-    defaults: { email: profile.emails[0].value, namaLengkap: profile.displayName, role: 'user' }
-  });
-  done(null, user);
+  try {
+    if (!profile.emails?.[0]?.value) {
+      throw new Error('No email provided from Google');
+    }
+
+    const [user] = await User.findOrCreate({
+      where: { googleId: profile.id },
+      defaults: {
+        email: profile.emails[0].value,
+        namaLengkap: profile.displayName,
+        role: 'user'
+      }
+    });
+
+    // Fetch full user to ensure we have all fields
+    const fullUser = await User.findByPk(user.id);
+    done(null, fullUser);
+  } catch (error) {
+    console.error('Passport Google Strategy Error:', error);
+    done(error, null);
+  }
 }));
 
 passport.serializeUser((user, done)=> done(null, user.id));

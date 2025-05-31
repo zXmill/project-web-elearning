@@ -1,0 +1,17 @@
+{
+  "development": {
+    "dialect": "sqlite",
+    "storage": "data/elearning.sqlite",
+    "logging": false
+  },
+  "test": {
+    "dialect": "sqlite",
+    "storage": ":memory:",
+    "logging": false
+  },
+  "production": {
+    "dialect": "sqlite",
+    "storage": "data/elearning_prod.sqlite",
+    "logging": false
+  }
+}
