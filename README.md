@@ -44,22 +44,10 @@ e:\project_elearning\e-learning_unesa\
    ```
 4. **Install Frontend Dependencies:**
    ```bash
-   cd ../frontend
+   cd frontend
    npm install
    ```
 
-## Configuration
-
-### Git Identity & Authentication
-Before making commits, ensure your Git identity is set:
-```bash
-git config --global user.email "your.email@example.com"
-git config --global user.name "Your Name"
-```
-Since GitHub no longer supports password authentication, update your remote to use SSH or a personal access token (PAT). For SSH:
-```bash
-git remote set-url origin git@github.com:zXmill/project-web-elearning.git
-```
 
 ### Environment Variables
 In the **backend/** folder, create a `.env` file with required configuration:
