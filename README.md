@@ -1,118 +1,83 @@
 # Project E-Learning Unesa
 
 ## Overview
-Project E-Learning Unesa is a comprehensive e-learning system featuring a React-based frontend and an Express/Node.js backend. The application supports user authentication, course enrollment, multimedia content delivery, administrative dashboards, offline video caching, and certificate generation.
+Project E-Learning Unesa is a comprehensive e-learning platform featuring a modern React frontend and an Express/Node.js backend. This project supports multiple authentication methods and rich course content management, while also planning for administrative functionality, user progress tracking, and assessment-based certification.
 
-## Features
-- **User Authentication:** Secure login using local credentials and social sign-in options.
-- **Course Management:** Browse available courses and enroll seamlessly.
-- **Content Delivery:** Access video lectures, textual content, PDFs, and interactive tests.
-- **Admin Dashboard:** Monitor user statistics and course summaries.
-- **Offline Support:** Cache videos locally for uninterrupted learning.
-- **Certificate Generation:** Automatically create PDF certificates upon course completion.
+## Features (Current & Planned)
 
-## Directory Structure
-```
-e:\project_elearning\e-learning_unesa\
-├── backend/        # Express backend with controllers, models, routes, etc.
-├── frontend/       # React-based frontend using Tailwind CSS.
-├── data/           # SQLite database file (created on first run).
-├── git_commit.sh   # Bash script to automate Git commit and push.
-└── README.md       # This file.
-```
+### Authentication & User Management
+- [x] User registration (local)
+- [x] User login (local)
+- [x] Google OAuth login
+- [x] Display user email on homepage after login
+- [x] Admin role and dashboard
+- [x] User profile page
+- [x] Password reset functionality
 
-## Installation
+### Course & Content Management (Admin)
+- [ ] CRUD operations for courses
+- [ ] CRUD operations for modules within courses
+- [ ] CRUD operations for content (videos, articles) within modules
+- [ ] Ability to set course prerequisites
+- [ ] Ability to manage course categories/tags
 
-### Prerequisites
-- Node.js (v14+ recommended)
-- Git (with a configured user identity)
-- For Windows users, Git Bash is recommended for running bash scripts.
+### Course & Content Consumption (User)
+- [ ] Browse and filter courses
+- [x] Enroll in courses
+- [ ] View course content (videos, articles)
+- [x] Track course progress
+- [x] Mark modules/content as complete
+- [ ] Search functionality for courses and content
 
-### Setup Steps
+### Assessment & Certification
+- [x] Quizzes/assessments within modules
+- [x] Automatic grading for quizzes
+- [ ] Certificate generation upon course completion
+- [ ] View and download certificates
+
+## How to Use
+
+### Installation & Setup
 1. **Clone the Repository:**
    ```bash
    git clone git@github.com:zXmill/project-web-elearning.git
    ```
-2. **Navigate to the Project Directory:**
+2. **Navigate to the Project Root:**
    ```bash
    cd e:\project_elearning\e-learning_unesa
    ```
-3. **Install Backend Dependencies:**
-   ```bash
-   cd backend
-   npm install
-   ```
-4. **Install Frontend Dependencies:**
-   ```bash
-   cd frontend
-   npm install
-   ```
+3. **Install Dependencies:**
+   - From the `backend` folder:
+     ```bash
+     cd backend
+     npm install
+     ```
+   - From the `frontend` folder:
+     ```bash
+     cd ../frontend
+     npm install
+     ```
 
-
-### Environment Variables
-In the **backend/** folder, create a `.env` file with required configuration:
-```dotenv
-PORT=3000
-SESSION_SECRET=your_session_secret
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRES_IN=1h
-# Add other necessary variables as needed
-```
-
-## Running the Application
-
-### Start the Backend
-From the `backend` directory:
-```bash
-npm start
-```
-The server will start on the port defined in your `.env` file.
-
-### Start the Frontend
-From the `frontend` directory:
-```bash
-npm start
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser to view the application.
-
-## Git Workflow: Using the Commit Script
-
-A handy script is provided to automate the Git commit and push workflow:
-
-1. Open Git Bash (or run bash via PowerShell) in the project root (`e:\project_elearning\e-learning_unesa`).
-2. Run the script:
-   ```bash
-   bash git_commit.sh
-   ```
-   
-The script will:
-- Stage all changes.
-- Generate a commit message listing updated files (or a summary if there are too many files).
-- Commit the changes.
-- Push to the remote repository.
-
-*Note:* If too many files are changed, the commit message will be shortened to avoid an excessively long argument list.
-
-## Troubleshooting
-
-- **Git Identity Not Set:**  
-  If prompted with a message about unknown author identity, configure your Git user name and email as shown above.
-
-- **Authentication Issues:**  
-  Ensure your remote URL uses SSH or a PAT since GitHub no longer accepts password authentication for HTTPS remotes.
-
-- **Rename Detection Warning:**  
-  You may adjust the rename limit via:  
+### Running the Application
+- **Backend:**  
+  Start the Express server from the `backend` folder:  
   ```bash
-  git config diff.renameLimit 43610
+  npm run dev
   ```
-  if you consistently work with a large number of files.
+- **Frontend:**  
+  Start the React application from the `frontend` folder:  
+  ```bash
+  npm start
+  ```
+  Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-- **SSH Key Issues:**  
-  Verify that your SSH key is added to your GitHub account by visiting [GitHub SSH settings](https://github.com/settings/keys).
-
-## Contribution
-Contributions are welcome! Fork this repository, make your changes, and open a pull request.
+## Additional Notes
+- **.env Files:**  
+  Use the provided `.env.example` in the backend as a guide. Ensure you do NOT commit your actual `.env` file by listing it in `.gitignore`.
+- **Authentication:**  
+  Configure your Git identity and use SSH or a personal access token for GitHub.
+- **Contribution:**  
+  Contributions are welcome! Please fork the repository, create your feature branch, and open a pull request.
 
 ## License
-This project is licensed under the MIT License.
+none
