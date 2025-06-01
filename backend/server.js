@@ -13,8 +13,8 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-// Serve static files from the 'uploads' directory
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Serve static files from the 'public/uploads' directory, mapped to the '/uploads' URL path
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
  app.use(session({ secret: process.env.SESSION_SECRET, resave:false, saveUninitialized:false }));
  app.use(passport.initialize());
  app.use(passport.session());
@@ -23,7 +23,7 @@ app.use((req, res, next) => {
   next();
 });
  app.use('/api/auth', require('./routes/auth'));
- app.use('/api/courses', require('./routes/course'));
+ app.use('/api/courses', require('./routes/courseRoutes')); // Corrected to use courseRoutes.js
  app.use('/api/certificates', require('./routes/certificate'));
  app.use('/api/admin', require('./routes/admin')); // Mount admin routes
 

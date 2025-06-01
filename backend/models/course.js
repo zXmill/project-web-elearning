@@ -6,7 +6,17 @@ module.exports = (sequelize, DataTypes) => {
     imageSrc: { type: DataTypes.STRING, allowNull: true }, // For course thumbnail
     area: { type: DataTypes.STRING, allowNull: true },     // For filtering by body area
     syaratDanKetentuan: { type: DataTypes.TEXT, allowNull: true },
-    needsPreTest: { type: DataTypes.BOOLEAN, defaultValue: true }, // Defaulting to true as per general requirement
+    needsPreTest: { type: DataTypes.BOOLEAN, defaultValue: true },
+    prerequisites: { // Array of prerequisite course IDs or objects representing prerequisite courses
+      type: DataTypes.JSON,
+      allowNull: true,
+      comment: 'Array of prerequisite course IDs or objects representing prerequisite courses'
+    },
+    status: { // Add status field to match DB schema
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'FREE',
+    },
   });
 
   Course.associate = (models) => {

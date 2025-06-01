@@ -12,18 +12,32 @@ const PreTestPage = () => {
   const [error, setError] = useState('');
   const [courseTitle, setCourseTitle] = useState('');
   const [moduleTitle, setModuleTitle] = useState('');
+  const [preTestModuleId, setPreTestModuleId] = useState(null); // Added state for preTestModuleId
 
   useEffect(() => {
     const fetchPreTestQuestions = async () => {
       try {
         setLoading(true);
         setError('');
-        const response = await api.get(`/courses/${courseId}/pretest-questions`);
+        const response = await api.get(`/courses/${courseId}/pre-test/questions`);
         if (response.data && response.data.status === 'success') {
-          setQuestions(response.data.data.questions || []);
+          const fetchedQuestions = response.data.data.questions || [];
+          const parsedQuestions = fetchedQuestions.map(q => {
+            try {
+              return {
+                ...q,
+                options: typeof q.options === 'string' ? JSON.parse(q.options) : q.options || []
+              };
+            } catch (parseError) {
+              console.error("Failed to parse options for question:", q.id, parseError);
+              return { ...q, options: [] }; // Fallback to empty options on parse error
+            }
+          });
+          setQuestions(parsedQuestions);
           setCourseTitle(response.data.data.courseTitle || 'Pre-Test');
           setModuleTitle(response.data.data.moduleTitle || '');
-          if (!response.data.data.questions || response.data.data.questions.length === 0) {
+          setPreTestModuleId(response.data.data.moduleId || null); // Store moduleId
+          if (parsedQuestions.length === 0) {
             setError('Tidak ada soal pre-test yang tersedia untuk kursus ini.');
           }
         } else {
@@ -58,12 +72,59 @@ const PreTestPage = () => {
     }
   };
   
-  // Placeholder for submission
-  const handleSubmit = () => {
-    alert('Pre-test submitted! (Scoring not implemented yet) Proceeding to course content...');
-    // Navigate to a new page that will handle module display and progression
-    // We'll need to fetch the actual first module ID later. For now, a placeholder.
-    navigate(`/course/${courseId}/content`); 
+  
+  const handleSubmit = async () => {
+    if (!preTestModuleId) {
+      setError("Module ID untuk pre-test tidak ditemukan. Tidak dapat mengirimkan hasil.");
+      console.error("Pre-test module ID is not set.");
+      return;
+    }
+
+    let correctAnswersCount = 0;
+    const resultsForReview = questions.map(q => {
+      const selectedOptId = selectedOptions[q.id];
+      const isCorrect = selectedOptId === q.correctOptionId;
+      if (isCorrect) {
+        correctAnswersCount++;
+      }
+      return {
+        questionId: q.id,
+        teksSoal: q.teksSoal,
+        options: q.options, // these are already parsed
+        selectedOptionId: selectedOptId,
+        correctOptionId: q.correctOptionId,
+        isCorrect: isCorrect,
+        explanation: q.explanation || null // Pass explanation if available
+      };
+    });
+
+    const percentage = questions.length > 0 ? (correctAnswersCount / questions.length) * 100 : 0;
+
+    try {
+      await api.post(`/courses/${courseId}/modules/${preTestModuleId}/record-score`, {
+        score: percentage, // Send percentage as score
+        answers: selectedOptions // Send the raw selected options map
+      });
+      
+      // Navigate to the result page
+      navigate(`/course/${courseId}/pretest-result`, { 
+        state: { 
+          results: resultsForReview, 
+          score: correctAnswersCount, 
+          totalQuestions: questions.length, 
+          percentage,
+          courseTitle,
+          moduleTitle,
+          questions: questions // Pass all original questions for full details like explanation
+        } 
+      });
+
+    } catch (err) {
+      console.error("Error submitting pre-test results:", err);
+      setError(err.response?.data?.message || 'Gagal mengirimkan hasil pre-test.');
+      // Optionally, still allow navigation to review page even if API fails, or handle differently
+      // For now, we'll show an error and not navigate if API fails.
+    }
   };
 
   if (loading) {
@@ -121,7 +182,8 @@ const PreTestPage = () => {
           {currentQuestionIndex === questions.length - 1 ? (
              <button
                 onClick={handleSubmit}
-                className="w-full sm:w-auto px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 transition-colors"
+                disabled={Object.keys(selectedOptions).length !== questions.length}
+                className="w-full sm:w-auto px-6 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
                 Kumpulkan
             </button>

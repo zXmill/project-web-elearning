@@ -5,6 +5,8 @@ const api = axios.create({
   withCredentials: true                  
 });
 
+export const BACKEND_URL = 'http://localhost:3001'; // Export the base URL for static assets
+
 // Add a request interceptor to include the token in headers
 api.interceptors.request.use(
   config => {

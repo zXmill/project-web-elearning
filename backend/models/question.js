@@ -15,7 +15,12 @@ module.exports = (sequelize, DataTypes) => {
     teksSoal:  { type: DataTypes.TEXT, allowNull: false },
     type:      { type: DataTypes.ENUM('mcq','upload'), allowNull: false }, // 'upload' might be for other uses, 'mcq' for tests
     options:   { type: DataTypes.JSON },  // array opsi untuk MCQ, e.g., [{id: 'a', text: 'Option 1'}, {id: 'b', text: 'Option 2'}]
-    correctOptionId: { type: DataTypes.STRING, allowNull: true } // Stores the 'id' of the correct option from the options array.
+    correctOptionId: { type: DataTypes.STRING, allowNull: true }, // Stores the 'id' of the correct option from the options array.
+    explanation: { 
+      type: DataTypes.TEXT, 
+      allowNull: true,
+      comment: 'Optional feedback/explanation shown when answer is incorrect'
+    }
   });
 
   Question.associate = (models) => {

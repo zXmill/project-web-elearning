@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom"; // Import Link and useNavigate
 import SearchBar from "../components/Common/SearchBar";
 import ContentCard from "../components/Common/ContentCard";
-import useAuth from "../hooks/useAuth"; // Import useAuth hook
+import { useAuth } from "../contexts/AuthContext"; // Corrected useAuth import
 import api from "../services/api"; // Import api service
 // import { Cog8ToothIcon } from '@heroicons/react/24/outline'; // For an icon - currently unused
 

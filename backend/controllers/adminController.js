@@ -6,8 +6,9 @@ exports.getDashboardSummary = async (req, res) => {
   try {
     const totalUsers = await User.count();
     const totalCourses = await Course.count();
-    // Placeholder for activeEnrollments - requires Enrollment model or association
-    const activeEnrollments = 0; // Replace with actual count if/when available
+    // Count all enrollments (active means enrolled)
+    const Enrollment = require('../models').Enrollment;
+    const activeEnrollments = await Enrollment.count();
 
     const summary = {
       totalUsers,
@@ -252,6 +253,46 @@ exports.deleteUser = async (req, res) => {
       errorCode: 'ADMIN_DELETE_USER_FAILED',
       // Optionally include a sanitized version of the error if safe
       // errorDetail: process.env.NODE_ENV === 'development' ? error.message : undefined 
+    });
+  }
+};
+
+// --- ADMIN: Get all courses (for admin panel) ---
+exports.getAllCourses = async (req, res) => {
+  try {
+    const courses = await Course.findAll({
+      order: [['judul', 'ASC']],
+    });
+    res.status(200).json({
+      status: 'success',
+      results: courses.length,
+      data: { courses },
+    });
+  } catch (error) {
+    console.error('[AdminController] Error fetching courses:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data kursus (admin).',
+    });
+  }
+};
+
+// Get all courses (admin)
+exports.getAllCoursesAdmin = async (req, res) => {
+  try {
+    const courses = await Course.findAll({
+      order: [['judul', 'ASC']],
+    });
+    res.status(200).json({
+      status: 'success',
+      results: courses.length,
+      data: { courses },
+    });
+  } catch (error) {
+    console.error('Error fetching courses (admin):', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data kursus (admin).',
     });
   }
 };

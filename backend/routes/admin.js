@@ -3,6 +3,46 @@ const router = express.Router();
 const { authMiddleware } = require('../middleware/auth'); // General authentication
 const { isAdmin } = require('../middleware/adminAuth');   // Admin role check
 const adminController = require('../controllers/adminController');
+const courseAdminController = require('../controllers/courseAdminController'); // Import courseAdminController
+const moduleAdminController = require('../controllers/moduleAdminController'); // Import moduleAdminController
+const questionAdminController = require('../controllers/questionAdminController'); // Import questionAdminController
+
+// Middleware for file uploads (multer)
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs'); // Import fs module for directory creation
+
+// Configure Multer for course image uploads
+const courseImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Construct path relative to this file's location (backend/routes/admin.js)
+    // Go up one level to 'backend/', then into 'public/uploads/courses/'
+    const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'courses');
+    
+    // Ensure the directory exists, create it if it doesn't
+    fs.mkdirSync(uploadPath, { recursive: true });
+    
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+const uploadCourseImage = multer({ storage: courseImageStorage });
+
+// Configure Multer for module PDF uploads
+const modulePdfStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'modules');
+    fs.mkdirSync(uploadPath, { recursive: true });
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`);
+  },
+});
+const uploadModulePdf = multer({ storage: modulePdfStorage });
+
 
 // All routes in this file will first be protected by authMiddleware, then by isAdmin
 
@@ -30,7 +70,142 @@ router.post(
   adminController.createUser // We'll create this controller function
 );
 
-// Add more admin-specific routes here for CRUD operations on users, courses, content etc.
+// --- COURSE CRUD (ADMIN) ---
+// GET /api/admin/courses - List all courses (admin view)
+router.get(
+  '/courses',
+  authMiddleware,
+  isAdmin,
+  courseAdminController.getAllCourses // Use courseAdminController
+);
+
+// POST /api/admin/courses - Create a new course
+router.post(
+  '/courses',
+  authMiddleware,
+  isAdmin,
+  uploadCourseImage.single('imageFile'), // Middleware for image upload
+  courseAdminController.createCourse    // Use courseAdminController
+);
+
+// GET /api/admin/courses/:id - Get a single course by ID (admin view)
+router.get(
+  '/courses/:id',
+  authMiddleware,
+  isAdmin,
+  courseAdminController.getCourse // Use courseAdminController
+);
+
+// PUT /api/admin/courses/:id - Update a course
+router.put(
+  '/courses/:id',
+  authMiddleware,
+  isAdmin,
+  uploadCourseImage.single('imageFile'), // Middleware for image upload
+  courseAdminController.updateCourse    // Use courseAdminController
+);
+
+// DELETE /api/admin/courses/:id - Delete a course
+router.delete(
+  '/courses/:id',
+  authMiddleware,
+  isAdmin,
+  courseAdminController.deleteCourse // Use courseAdminController
+);
+
+// --- MODULE CRUD (ADMIN) ---
+// GET /api/admin/courses/:courseId/modules - List all modules for a course
+router.get(
+  '/courses/:courseId/modules',
+  authMiddleware,
+  isAdmin,
+  moduleAdminController.getModulesByCourse
+);
+
+// POST /api/admin/courses/:courseId/modules - Create a new module for a course
+router.post(
+  '/courses/:courseId/modules',
+  authMiddleware,
+  isAdmin,
+  uploadModulePdf.single('pdfFile'), // Middleware for PDF upload
+  moduleAdminController.createModule
+);
+
+// GET /api/admin/modules/:moduleId - Get a single module by ID
+router.get(
+  '/modules/:moduleId',
+  authMiddleware,
+  isAdmin,
+  moduleAdminController.getModuleById
+);
+
+// PUT /api/admin/modules/:moduleId - Update a module
+router.put(
+  '/modules/:moduleId',
+  authMiddleware,
+  isAdmin,
+  uploadModulePdf.single('pdfFile'), // Middleware for PDF upload
+  moduleAdminController.updateModule
+);
+
+// DELETE /api/admin/modules/:moduleId - Delete a module
+router.delete(
+  '/modules/:moduleId',
+  authMiddleware,
+  isAdmin,
+  moduleAdminController.deleteModule
+);
+
+// POST /api/admin/courses/:courseId/modules/reorder - Reorder modules for a course
+router.post(
+  '/courses/:courseId/modules/reorder',
+  authMiddleware,
+  isAdmin,
+  moduleAdminController.reorderModules
+);
+
+// --- QUESTION CRUD (ADMIN) ---
+// GET /api/admin/modules/:moduleId/questions - List all questions for a module
+router.get(
+  '/modules/:moduleId/questions',
+  authMiddleware,
+  isAdmin,
+  questionAdminController.getQuestions // Corrected function name
+);
+
+// POST /api/admin/modules/:moduleId/questions - Create a new question for a module
+router.post(
+  '/modules/:moduleId/questions',
+  authMiddleware,
+  isAdmin,
+  questionAdminController.createQuestion
+);
+
+// GET /api/admin/questions/:questionId - Get a single question by ID
+router.get(
+  '/questions/:questionId',
+  authMiddleware,
+  isAdmin,
+  questionAdminController.getQuestionById
+);
+
+// PUT /api/admin/questions/:questionId - Update a question
+router.put(
+  '/questions/:questionId',
+  authMiddleware,
+  isAdmin,
+  questionAdminController.updateQuestion
+);
+
+// DELETE /api/admin/questions/:questionId - Delete a question
+router.delete(
+  '/questions/:questionId',
+  authMiddleware,
+  isAdmin,
+  questionAdminController.deleteQuestion
+);
+
+// --- User Management by Admin ---
 router.put(
   '/users/:id',
   authMiddleware,

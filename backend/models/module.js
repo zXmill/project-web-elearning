@@ -13,12 +13,13 @@ module.exports = (sequelize, DataTypes) => {
     },
     judul: { type: DataTypes.STRING, allowNull: false },
     type: {
-      type: DataTypes.ENUM('text', 'pdf', 'video', 'pre_test', 'post_test'),
+      type: DataTypes.ENUM('PAGE', 'PRE_TEST_QUIZ', 'POST_TEST_QUIZ'),
       allowNull: false,
     },
-    contentText: { type: DataTypes.TEXT, allowNull: true }, // For 'text' type, or instructions for tests
-    pdfPath: { type: DataTypes.STRING, allowNull: true },    // For 'pdf' type
-    videoLink: { type: DataTypes.STRING, allowNull: true },  // For 'video' type
+    contentText: { type: DataTypes.TEXT, allowNull: true }, // For instructions (e.g., for QUIZ types) or simple text content
+    pageContent: { type: DataTypes.JSON, allowNull: true }, // For 'PAGE' type, stores structured content (e.g., blocks for text, video, PDF)
+    pdfPath: { type: DataTypes.STRING, allowNull: true },    // Legacy: For 'pdf' type, will be superseded by pageContent for PAGE type
+    videoLink: { type: DataTypes.STRING, allowNull: true },  // Legacy: For 'video' type, will be superseded by pageContent for PAGE type
     order: { type: DataTypes.INTEGER, allowNull: false },   // For sequencing modules
   });
 

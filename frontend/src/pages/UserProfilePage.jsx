@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom'; // Import Link
 import api from '../services/api';
 import { UserCircleIcon, EnvelopeIcon, CalendarDaysIcon, IdentificationIcon, CameraIcon, ArrowUpTrayIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'; // Added ArrowLeftIcon
-import useAuth from '../hooks/useAuth'; // Import useAuth to update global state
+import { useAuth } from '../contexts/AuthContext'; // Corrected useAuth import
 
 const UserProfilePage = () => {
   const { user: authUser, setUser: setAuthUser, loading: authLoading } = useAuth(); // Get user and setUser from useAuth
@@ -24,11 +24,21 @@ const UserProfilePage = () => {
         setSuccessMessage('');
         const response = await api.get('/auth/profile');
         if (response.data && response.data.status === 'success') {
-          setUser(response.data.data.user);
-          setNamaLengkap(response.data.data.user.namaLengkap);
-          if (response.data.data.user.profilePicture) {
-            // Assuming backend serves files from root, adjust if API_URL is needed
-            setPreviewSource(response.data.data.user.profilePicture.startsWith('http') ? response.data.data.user.profilePicture : `${api.defaults.baseURL.replace('/api', '')}${response.data.data.user.profilePicture}`);
+          const fullUserProfile = response.data.data.user;
+          setUser(fullUserProfile); // Update local state for this page
+          setNamaLengkap(fullUserProfile.namaLengkap); // Update local state for form input
+
+          // Update global AuthContext with the full user profile
+          // This will make namaLengkap and profilePicture available to Header and other components
+          setAuthUser(prevAuthUser => ({ 
+            ...prevAuthUser, // Keep existing fields from token (like id, email, role, exp, iat)
+            namaLengkap: fullUserProfile.namaLengkap,
+            profilePicture: fullUserProfile.profilePicture 
+            // Add any other fields from fullUserProfile that should be in context
+          }));
+
+          if (fullUserProfile.profilePicture) {
+            setPreviewSource(fullUserProfile.profilePicture.startsWith('http') ? fullUserProfile.profilePicture : `${api.defaults.baseURL.replace('/api', '')}${fullUserProfile.profilePicture}`);
           }
         } else {
           setError('Gagal mengambil data profil pengguna.');
@@ -55,9 +65,17 @@ const UserProfilePage = () => {
       setLoading(true);
       const response = await api.put('/auth/profile', { namaLengkap: namaLengkap.trim() });
       if (response.data && response.data.status === 'success') {
-        setUser(response.data.data.user);
-        setNamaLengkap(response.data.data.user.namaLengkap);
-        localStorage.setItem('userName', response.data.data.user.namaLengkap); // Update localStorage if name is stored there
+        const updatedUserFromPut = response.data.data.user;
+        setUser(updatedUserFromPut); // Update local state
+        setNamaLengkap(updatedUserFromPut.namaLengkap);
+        
+        // Update AuthContext after successful name update
+        setAuthUser(prevAuthUser => ({
+          ...prevAuthUser,
+          namaLengkap: updatedUserFromPut.namaLengkap
+        }));
+        
+        localStorage.setItem('userName', updatedUserFromPut.namaLengkap); 
         setSuccessMessage('Profil berhasil diperbarui!');
       } else {
         setError(response.data.message || 'Gagal memperbarui profil.');

@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useAuth } from '../contexts/AuthContext'; // Assuming AuthContext provides user info
 
 const CourseDetailPage = () => {
   const { courseId } = useParams();
-  const navigate = useNavigate(); // Initialize useNavigate
+  const navigate = useNavigate();
+  const { user } = useAuth(); // Get user from AuthContext to check if logged in
+
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('deskripsi'); // 'deskripsi' or 'syarat'
+  const [activeTab, setActiveTab] = useState('deskripsi');
+
+  // State for certificate eligibility
+  const [certificateEligible, setCertificateEligible] = useState(false);
+  const [eligibilityChecked, setEligibilityChecked] = useState(false);
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
+  const [eligibilityError, setEligibilityError] = useState('');
+  const [eligibilityReasons, setEligibilityReasons] = useState([]);
 
   useEffect(() => {
     const fetchCourseDetails = async () => {
@@ -30,25 +40,20 @@ const CourseDetailPage = () => {
                                      (typeof fetchedCourse.deskripsi === 'string' ? fetchedCourse.deskripsi.substring(0,100) + "..." : "Info singkat kursus.")
           });
         } else if (response.data && response.data.status === 'fail') {
-          // Handle cases where the API explicitly says 'fail' (e.g., course not found by backend controller)
-           setError(response.data.message || 'Kursus tidak ditemukan.');
-           setCourse(null); // Ensure course is null if not found
-        }
-        else {
-          // Handle other unexpected response structures
+          setError(response.data.message || 'Kursus tidak ditemukan.');
+          setCourse(null);
+        } else {
           setError('Gagal mengambil detail kursus atau format respons tidak sesuai.');
           setCourse(null);
         }
       } catch (err) {
         console.error("Error fetching course details:", err);
-        // If the error object has a response from the server (e.g., 404, 500 from backend)
         if (err.response && err.response.data && err.response.data.message) {
           setError(err.response.data.message);
         } else {
           setError('Terjadi kesalahan saat menghubungi server.');
         }
-        setCourse(null); // Ensure course is null on error
-        setError(err.response?.data?.message || 'Terjadi kesalahan server.');
+        setCourse(null);
       } finally {
         setLoading(false);
       }
@@ -58,6 +63,93 @@ const CourseDetailPage = () => {
       fetchCourseDetails();
     }
   }, [courseId]);
+
+  // Effect to check certificate eligibility
+  useEffect(() => {
+    const checkEligibility = async () => {
+      if (courseId && user) { // Only check if user is logged in
+        setEligibilityLoading(true);
+        setEligibilityError('');
+        setEligibilityReasons([]);
+        try {
+          const response = await api.get(`/courses/${courseId}/certificate/eligibility`);
+          if (response.data && response.data.status === 'success') {
+            setCertificateEligible(response.data.eligible);
+            if (!response.data.eligible && response.data.reasons) {
+              setEligibilityReasons(response.data.reasons);
+            }
+          } else {
+            setEligibilityError(response.data.message || 'Gagal memeriksa kelayakan sertifikat.');
+          }
+        } catch (err) {
+          console.error("Error checking certificate eligibility:", err);
+          if (err.response && err.response.data && err.response.data.message) {
+            setEligibilityError(err.response.data.message);
+          } else {
+            setEligibilityError('Terjadi kesalahan saat memeriksa kelayakan sertifikat.');
+          }
+        } finally {
+          setEligibilityLoading(false);
+          setEligibilityChecked(true);
+        }
+      } else {
+        // If not logged in, or no courseId, don't attempt to check.
+        // User will not see certificate options.
+        setEligibilityChecked(false); 
+      }
+    };
+
+    if (courseId && user) { // Trigger only if courseId and user are available
+        checkEligibility();
+    }
+  }, [courseId, user]); // Rerun if courseId or user changes
+
+  const handleDownloadCertificate = async () => {
+    try {
+      // The actual download is handled by the browser due to Content-Disposition
+      const response = await api.get(`/courses/${courseId}/certificate/download`, {
+        responseType: 'blob', // Important to handle binary data
+      });
+      
+      // Create a URL for the blob
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Extract filename from content-disposition header if possible
+      const contentDisposition = response.headers['content-disposition'];
+      let filename = `sertifikat-${course?.judul?.replace(/\s+/g, '_') || 'kursus'}.pdf`; // Default filename
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+        if (filenameMatch && filenameMatch.length === 2)
+          filename = filenameMatch[1];
+      }
+      
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+      console.error("Error downloading certificate:", err);
+      // Display a more user-friendly error, perhaps using a toast notification library
+      alert('Gagal mengunduh sertifikat. Pastikan Anda memenuhi syarat.');
+      if (err.response && err.response.data) {
+        // If the error response is JSON (e.g., eligibility failure from backend), try to parse it
+        try {
+            const errorData = JSON.parse(await err.response.data.text()); // For blob error
+            if (errorData.message) {
+                alert(`Detail: ${errorData.message}`);
+            }
+        } catch (parseError) {
+            // If parsing fails, it's likely not a JSON error response
+            console.error("Could not parse error response:", parseError);
+        }
+      }
+    }
+  };
+
 
   if (loading) {
     return (
@@ -131,18 +223,57 @@ const CourseDetailPage = () => {
               {course.shortDescriptionSidebar}
             </p>
             <button 
-              className="w-full bg-teraplus-accent text-white font-semibold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-teraplus-accent focus:ring-opacity-50"
+              className="w-full bg-teraplus-accent text-white font-semibold py-3 px-4 rounded-lg hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-teraplus-accent focus:ring-opacity-50 mb-4"
               onClick={() => {
-                if (course && course.needsPreTest) {
-                  navigate(`/course/${courseId}/pretest`);
+                // Check enrollment status before navigating
+                // This logic might be more complex depending on requirements (e.g., auto-enroll or prompt)
+                // For now, directly navigate or show alert.
+                // A better UX would be to check enrollment and then decide.
+                if (user) { // Only allow course start actions if logged in
+                    if (course && course.needsPreTest) {
+                        navigate(`/course/${courseId}/pretest`);
+                    } else {
+                        // Navigate to the first module of the course or course content page
+                        navigate(`/course/${courseId}/content`); 
+                    }
                 } else {
-                  // Placeholder for actual course start logic if no pre-test
-                  alert('Mulai Course Clicked! (No Pre-Test)');
+                    alert("Silakan login terlebih dahulu untuk memulai kursus.");
+                    navigate('/login');
                 }
               }}
             >
               {course && course.needsPreTest ? 'Mulai Pre-Test' : 'Mulai Course'}
             </button>
+
+            {/* Certificate Section */}
+            {user && eligibilityChecked && (
+              <div className="mt-6 pt-4 border-t border-gray-200">
+                <h3 className="text-lg font-semibold text-teraplus-text-default mb-2">Sertifikat</h3>
+                {eligibilityLoading && <p className="text-sm text-gray-500">Memeriksa kelayakan...</p>}
+                {eligibilityError && <p className="text-sm text-red-500">{eligibilityError}</p>}
+                {!eligibilityLoading && !eligibilityError && (
+                  certificateEligible ? (
+                    <button
+                      onClick={handleDownloadCertificate}
+                      className="w-full bg-green-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-600 transition-opacity focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+                    >
+                      Unduh Sertifikat
+                    </button>
+                  ) : (
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Anda belum memenuhi syarat untuk sertifikat.</p>
+                      {eligibilityReasons.length > 0 && (
+                        <ul className="list-disc list-inside text-xs text-gray-500">
+                          {eligibilityReasons.map((reason, index) => (
+                            <li key={index}>{reason}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

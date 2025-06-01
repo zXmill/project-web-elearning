@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { UserCircleIcon, ArrowLeftOnRectangleIcon, MagnifyingGlassIcon, Bars3Icon, XMarkIcon, Cog8ToothIcon } from '@heroicons/react/24/outline';
 const logo = '/logo-vert.png'; // Correct way to reference images in public folder
 import SearchBar from '../Common/SearchBar'; 
-import useAuth from '../../hooks/useAuth';
+import { useAuth } from '../../contexts/AuthContext'; // Corrected useAuth import
 import api from '../../services/api'; // Import api for base URL
 
 // Helper function to get user initials
@@ -29,11 +29,13 @@ const Header = () => {
 
   const { user, loading: authLoading } = useAuth();
 
+  // userName state can still be used for other purposes if needed, 
+  // but for avatar display, we'll use user prop directly.
+  // The useEffect for userName might still be useful for the dropdown's detailed view.
   useEffect(() => {
     if (user) {
       setUserName(user.namaLengkap || user.email || 'User');
     } else if (!authLoading) {
-      // If not loading and no user, clear userName or set to guest
       setUserName('');
     }
   }, [user, authLoading]);
@@ -136,10 +138,12 @@ const Header = () => {
                       />
                     ) : (
                       <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-teraplus-secondary">
-                        <span className="text-sm font-medium leading-none text-white">{getUserInitials(userName)}</span>
+                        {/* Use user.namaLengkap or user.email directly for initials */}
+                        <span className="text-sm font-medium leading-none text-white">{getUserInitials(user.namaLengkap || user.email)}</span>
                       </span>
                     )}
-                    <span className="hidden md:block ml-2 text-sm font-medium text-gray-700">{userName}</span>
+                    {/* Display user.namaLengkap or user.email directly */}
+                    <span className="hidden md:block ml-2 text-sm font-medium text-gray-700">{user.namaLengkap || user.email || ''}</span>
                   </button>
                 </div>
                 {isProfileDropdownOpen && (
@@ -152,7 +156,8 @@ const Header = () => {
                   >
                     <div className="px-4 py-3 text-sm text-gray-700 border-b border-gray-200"> {/* Adjusted border color */}
                       <p className="font-medium">Signed in as</p>
-                      <p className="truncate font-semibold">{userName}</p>
+                      {/* userName state is fine here for the dropdown's more detailed display if it's kept updated */}
+                      <p className="truncate font-semibold">{userName}</p> 
                       {user.role && <p className="text-xs text-gray-500 capitalize">({user.role})</p>}
                     </div>
                     <Link to="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-200 w-full text-left" role="menuitem"> {/* Adjusted hover color */}

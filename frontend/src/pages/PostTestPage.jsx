@@ -19,12 +19,30 @@ const PostTestPage = () => {
         setLoading(true);
         setError('');
         // Fetch from the new post-test endpoint
-        const response = await api.get(`/courses/${courseId}/posttest-questions`); 
+        const response = await api.get(`/courses/${courseId}/post-test/questions`); 
         if (response.data && response.data.status === 'success') {
-          setQuestions(response.data.data.questions || []);
+          const fetchedQuestions = response.data.data.questions || [];
+          const processedQuestions = fetchedQuestions.map(q => {
+            let optionsArray = q.options;
+            if (typeof q.options === 'string') {
+              try {
+                optionsArray = JSON.parse(q.options);
+              } catch (e) {
+                console.error("Failed to parse options for question ID:", q.id, "Raw options:", q.options, e);
+                optionsArray = []; // Default to empty array on parse error
+              }
+            }
+            // Ensure it's an array even if parsing failed or it was null/undefined initially
+            if (!Array.isArray(optionsArray)) {
+                console.warn("Options for question ID:", q.id, "is not an array after processing. Raw options:", q.options, "Processed as:", optionsArray);
+                optionsArray = [];
+            }
+            return { ...q, options: optionsArray };
+          });
+          setQuestions(processedQuestions);
           setCourseTitle(response.data.data.courseTitle || 'Post-Test');
           setModuleTitle(response.data.data.moduleTitle || '');
-          if (!response.data.data.questions || response.data.data.questions.length === 0) {
+          if (processedQuestions.length === 0) {
             setError('Tidak ada soal post-test yang tersedia untuk kursus ini.');
           }
         } else {
@@ -120,7 +138,7 @@ const PostTestPage = () => {
         <h2 className="text-lg font-semibold text-teraplus-text-default mb-4">{currentQuestion.teksSoal}</h2>
         
         <div className="space-y-3 mb-6">
-          {currentQuestion.options.map((option) => (
+          {currentQuestion && Array.isArray(currentQuestion.options) && currentQuestion.options.map((option) => (
             <label key={option.id} className="flex items-center p-3 border rounded-md hover:bg-gray-50 cursor-pointer">
               <input
                 type="radio"

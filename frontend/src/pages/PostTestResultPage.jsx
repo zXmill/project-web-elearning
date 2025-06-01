@@ -44,6 +44,27 @@ const PostTestResultPage = () => {
           </button>
         </div>
 
+        {/* Certificate Download Button (if passed) */}
+        {isPassed && (
+          <div className="mb-6">
+            <form
+              action="http://localhost:3001/api/certificates" // Adjust port if needed
+              method="POST"
+              target="_blank"
+              className="inline"
+            >
+              <input type="hidden" name="name" value={localStorage.getItem('userName') || 'Nama Pengguna'} />
+              <input type="hidden" name="courseTitle" value={courseTitle} />
+              <button
+                type="submit"
+                className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+              >
+                Unduh Sertifikat
+              </button>
+            </form>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="md:col-span-1 p-4 border rounded-md bg-gray-50">
             <p className="text-sm text-gray-600">Tanggal Ujian: {date}</p>

@@ -71,6 +71,49 @@ Project E-Learning Unesa is a comprehensive e-learning platform featuring a mode
   ```
   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+## Environment Variables
+
+Create a `.env` file in the `backend` folder based on `.env.example`:
+
+```
+SESSION_SECRET=your_session_secret_here
+DATABASE_URL=sqlite://./data/elearning.sqlite
+FRONTEND_URL=http://localhost:3000
+```
+
+## Database Setup
+
+1. **Run Migrations:**
+   ```powershell
+   cd backend
+   npx sequelize-cli db:migrate
+   ```
+2. **Seed the Database:**
+   ```powershell
+   node scripts/seedCourses.js
+   ```
+
+## Testing
+
+- **Backend:**
+  - Add your Jest or Mocha tests in `backend/tests/`.
+  - Example run:
+    ```powershell
+    cd backend
+    npx jest
+    ```
+- **Frontend:**
+  - Add your React Testing Library or Jest tests in `frontend/src/__tests__/`.
+  - Example run:
+    ```powershell
+    cd frontend
+    npm test
+    ```
+
+## Certificate Generation & Download
+
+- Certificate generation is planned. When available, you will be able to download certificates from the course completion page.
+
 ## Additional Notes
 - **.env Files:**  
   Use the provided `.env.example` in the backend as a guide. Ensure you do NOT commit your actual `.env` file by listing it in `.gitignore`.

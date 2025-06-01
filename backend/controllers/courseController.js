@@ -68,7 +68,7 @@ exports.getPreTestQuestionsByCourseId = async (req, res) => {
     const preTestModule = await db.Module.findOne({
       where: {
         courseId: courseId,
-        isPreTest: true
+        type: 'PRE_TEST_QUIZ' // Correct ENUM value
       }
     });
 
@@ -79,7 +79,7 @@ exports.getPreTestQuestionsByCourseId = async (req, res) => {
     // Get all questions for that pre-test module
     const questions = await db.Question.findAll({
       where: { moduleId: preTestModule.id },
-      attributes: ['id', 'teksSoal', 'type', 'options', 'correctOptionId'] // Specify attributes to send
+      attributes: ['id', 'teksSoal', 'type', 'options', 'correctOptionId', 'explanation'] // Specify attributes to send, added explanation
     });
 
     if (!questions || questions.length === 0) {
@@ -91,6 +91,7 @@ exports.getPreTestQuestionsByCourseId = async (req, res) => {
       data: {
         courseTitle: course.judul,
         moduleTitle: preTestModule.judul,
+        moduleId: preTestModule.id, // Added moduleId
         questions: questions
       }
     });
@@ -114,7 +115,7 @@ exports.getPostTestQuestionsByCourseId = async (req, res) => {
     const postTestModule = await db.Module.findOne({
       where: {
         courseId: courseId,
-        isPostTest: true // Key difference: check for isPostTest
+        type: 'POST_TEST_QUIZ' // Correct ENUM value
       }
     });
 
@@ -161,7 +162,7 @@ exports.getCourseModules = async (req, res) => {
     const modules = await db.Module.findAll({
       where: {
         courseId: courseId,
-        type: { [Op.notIn]: ['pre_test', 'post_test'] } // Exclude pre-test and post-test types
+        type: { [Op.notIn]: ['PRE_TEST_QUIZ', 'POST_TEST_QUIZ'] } // Correct ENUM values
       },
       order: [['order', 'ASC']], // Order by the 'order' field
       attributes: ['id', 'judul', 'type', 'contentText', 'pdfPath', 'videoLink', 'order']
@@ -384,9 +385,9 @@ exports.markModuleComplete = async (req, res) => {
         return res.status(404).json({ status: 'fail', message: 'Modul tidak ditemukan atau tidak termasuk dalam kursus ini.' });
     }
 
-    // Find or create UserProgress record
+    // Find or create UserProgress record for this user, course, and module
     let userProgress = await db.UserProgress.findOne({
-      where: { userId: userId, courseId: courseId },
+      where: { userId: userId, courseId: courseId, moduleId: moduleId },
     });
 
     if (!userProgress) {
@@ -395,26 +396,22 @@ exports.markModuleComplete = async (req, res) => {
       if (!enrollment) {
         return res.status(403).json({ status: 'fail', message: 'Anda belum terdaftar di kursus ini untuk menandai progres.' });
       }
-      // If enrolled but no progress record, create one.
+      // If enrolled but no progress record, create one for this module
       userProgress = await db.UserProgress.create({
         userId: userId,
         courseId: courseId,
-        progressDetails: {}, // Initialize progressDetails
+        moduleId: moduleId,
+        completedAt: new Date().toISOString(),
+        lastAccessedAt: new Date().toISOString(),
       });
+    } else {
+      // Update completion timestamp if not already set
+      if (!userProgress.completedAt) {
+        userProgress.completedAt = new Date().toISOString();
+      }
+      userProgress.lastAccessedAt = new Date().toISOString();
+      await userProgress.save();
     }
-
-    // Update progressDetails
-    const currentProgressDetails = userProgress.progressDetails || {};
-    currentProgressDetails[moduleId] = {
-      completed: true,
-      completedAt: new Date().toISOString(),
-    };
-
-    userProgress.progressDetails = currentProgressDetails;
-    // Sequelize handles JSON stringification. Mark as changed if direct manipulation.
-    userProgress.changed('progressDetails', true); 
-
-    await userProgress.save();
 
     res.status(200).json({
       status: 'success',
@@ -461,13 +458,13 @@ exports.recordTestScore = async (req, res) => {
     if (!testModule) {
       return res.status(404).json({ status: 'fail', message: 'Modul tes tidak ditemukan atau tidak termasuk dalam kursus ini.' });
     }
-    if (!testModule.isPreTest && !testModule.isPostTest) {
+    if (testModule.type !== 'PRE_TEST_QUIZ' && testModule.type !== 'POST_TEST_QUIZ') { // Correct ENUM values
       return res.status(400).json({ status: 'fail', message: 'Modul ini bukan modul tes (pre-test/post-test).' });
     }
 
     // Find or create UserProgress record
     let userProgress = await db.UserProgress.findOne({
-      where: { userId: userId, courseId: courseId },
+      where: { userId: userId, courseId: courseId, moduleId: moduleId },
     });
 
     if (!userProgress) {
@@ -478,33 +475,20 @@ exports.recordTestScore = async (req, res) => {
       userProgress = await db.UserProgress.create({
         userId: userId,
         courseId: courseId,
-        progressDetails: {},
+        moduleId: moduleId,
+        completedAt: new Date().toISOString(),
+        score: score,
+        lastAccessedAt: new Date().toISOString(),
       });
+    } else {
+      // Update score and completion timestamp
+      userProgress.score = score;
+      if (!userProgress.completedAt) {
+        userProgress.completedAt = new Date().toISOString();
+      }
+      userProgress.lastAccessedAt = new Date().toISOString();
+      await userProgress.save();
     }
-
-    // Update score and progressDetails
-    const currentProgressDetails = userProgress.progressDetails || {};
-    let testTypeKey = '';
-
-    if (testModule.isPreTest) {
-      userProgress.preTestScore = score;
-      testTypeKey = `preTest_${moduleId}`;
-      // Mark pre-test module as "completed" in progressDetails as well
-      currentProgressDetails[moduleId] = { completed: true, completedAt: new Date().toISOString(), score: score, answers: answers };
-    } else if (testModule.isPostTest) {
-      userProgress.postTestScore = score;
-      testTypeKey = `postTest_${moduleId}`;
-      // Mark post-test module as "completed"
-      currentProgressDetails[moduleId] = { completed: true, completedAt: new Date().toISOString(), score: score, answers: answers };
-    }
-    
-    // Also add a more generic entry for the test itself if needed, e.g. using testTypeKey
-    // currentProgressDetails[testTypeKey] = { score: score, submittedAt: new Date().toISOString(), answers: answers };
-
-    userProgress.progressDetails = currentProgressDetails;
-    userProgress.changed('progressDetails', true);
-
-    await userProgress.save();
 
     res.status(200).json({
       status: 'success',
@@ -547,13 +531,12 @@ exports.getUserProgressForCourse = async (req, res) => {
       return res.status(404).json({ status: 'fail', message: 'Kursus tidak ditemukan.' });
     }
     
-    // Find UserProgress record
-    let userProgress = await db.UserProgress.findOne({
+    // Fetch all UserProgress records for this user and course
+    const userProgressRows = await db.UserProgress.findAll({
       where: { userId: userId, courseId: courseId },
     });
 
-    if (!userProgress) {
-      // If no progress record, check if enrolled. If so, it means they haven't started.
+    if (!userProgressRows || userProgressRows.length === 0) {
       const enrollment = await db.Enrollment.findOne({ where: { userId: userId, courseId: courseId }});
       if (enrollment) {
         // User is enrolled but has no progress, return default/empty progress
@@ -563,10 +546,7 @@ exports.getUserProgressForCourse = async (req, res) => {
           data: {
             courseId: courseId,
             userId: userId,
-            preTestScore: null,
-            postTestScore: null,
-            progressDetails: {},
-            completedModules: 0, // Or calculate based on an empty progressDetails
+            completedModules: 0,
             // Any other default fields from UserProgress model
           },
         });
@@ -575,30 +555,19 @@ exports.getUserProgressForCourse = async (req, res) => {
         return res.status(403).json({ status: 'fail', message: 'Anda tidak terdaftar di kursus ini.' });
       }
     }
-    
-    // Optionally, calculate completion percentage or other derived stats here
-    // For example, count completed modules from progressDetails
+
+    // Calculate completed modules
     let completedModulesCount = 0;
-    if (userProgress.progressDetails) {
-        Object.values(userProgress.progressDetails).forEach(detail => {
-            if (detail && detail.completed === true) {
-                // Ensure we are not double counting if test modules are also in progressDetails
-                // This simple count assumes any 'completed:true' entry is a distinct module.
-                // A more robust way would be to fetch actual course modules and check against them.
-                completedModulesCount++;
-            }
-        });
-    }
-    // If UserProgress model has a 'completedModules' field that is accurately maintained, use that instead.
-    // For now, using the calculated one.
-    // userProgress.completedModules = completedModulesCount; // This would be a non-persistent update for response only
+    userProgressRows.forEach(row => {
+      if (row.completedAt) completedModulesCount++;
+    });
 
     res.status(200).json({
       status: 'success',
       message: 'Progres pengguna berhasil diambil.',
       data: {
-        ...userProgress.toJSON(), // Send the full progress record
-        calculatedCompletedModules: completedModulesCount, // Example of adding a derived value
+        progress: userProgressRows,
+        completedModules: completedModulesCount,
       },
     });
 
@@ -610,6 +579,115 @@ exports.getUserProgressForCourse = async (req, res) => {
     });
   }
 };
+
+const PDFDocument = require('pdfkit');
+const fs = require('fs'); // For potential font loading, though not used in this basic example
+
+// Helper function to get eligibility data (extracted and adapted from checkCertificateEligibility)
+async function getCertificateEligibilityData(userId, courseId) {
+  // 1. Fetch Course and User details
+  const course = await db.Course.findByPk(courseId);
+  const user = await db.User.findByPk(userId, { attributes: ['id', 'namaLengkap', 'email'] }); // Changed 'nama' to 'namaLengkap'
+
+  if (!course) {
+    return { eligible: false, message: 'Kursus tidak ditemukan.', reasons: ['Kursus tidak ditemukan.'] };
+  }
+  if (!user) {
+    return { eligible: false, message: 'Pengguna tidak ditemukan.', reasons: ['Pengguna tidak ditemukan.'] };
+  }
+
+  // 2. Fetch all UserProgress records for this user and course
+  const userProgressRows = await db.UserProgress.findAll({
+    where: { userId: userId, courseId: courseId },
+  });
+
+  if (!userProgressRows || userProgressRows.length === 0) {
+    return {
+      eligible: false,
+      message: 'Progres pengguna tidak ditemukan. Anda mungkin belum memulai kursus ini.',
+      reasons: ['Belum memulai kursus atau progres tidak tercatat.'],
+    };
+  }
+
+  const reasons = [];
+  let eligible = true;
+
+  // 3. Check Post-Test Score
+  const postTestModule = await db.Module.findOne({
+    where: { courseId: courseId, type: 'POST_TEST_QUIZ' }, // Correct ENUM value
+  });
+  let postTestScore = null;
+  if (postTestModule) {
+    const postTestProgress = userProgressRows.find(row => row.moduleId === postTestModule.id);
+    postTestScore = postTestProgress ? postTestProgress.score : null;
+    if (course.needsPostTest) { // Assuming Course model has needsPostTest and minimumPostTestScore
+      if (postTestScore === null || postTestScore < (course.minimumPostTestScore || 70)) {
+        eligible = false;
+        reasons.push(`Skor post-test (${postTestScore !== null ? postTestScore : 'Belum ada'}) di bawah minimum (${course.minimumPostTestScore || 70}).`);
+      }
+    }
+  } else if (course.needsPostTest) {
+    eligible = false;
+    reasons.push('Modul post-test tidak ditemukan untuk kursus ini.');
+  }
+
+
+  // 4. Check Completion of all non-test modules
+  const contentModules = await db.Module.findAll({
+    where: {
+      courseId: courseId,
+      type: { [Op.notIn]: ['PRE_TEST_QUIZ', 'POST_TEST_QUIZ'] } // Correct ENUM values
+    },
+    attributes: ['id', 'judul'], // Added judul for better reason messages
+  });
+
+  if (contentModules.length > 0) {
+    let allContentModulesCompleted = true;
+    for (const module of contentModules) {
+      const progress = userProgressRows.find(row => row.moduleId === module.id);
+      if (!progress || !progress.completedAt) {
+        allContentModulesCompleted = false;
+        reasons.push(`Modul konten "${module.judul}" (ID: ${module.id}) belum selesai.`);
+      }
+    }
+    if (!allContentModulesCompleted) {
+      eligible = false;
+    }
+  }
+
+  // 5. Check Enrollment
+  const enrollment = await db.Enrollment.findOne({ where: { userId: userId, courseId: courseId }});
+  if (!enrollment) {
+      eligible = false;
+      reasons.push('Anda tidak terdaftar di kursus ini.');
+  }
+
+  if (eligible) {
+    let completionDate = null;
+    userProgressRows.forEach(row => {
+      if (row.completedAt && (!completionDate || new Date(row.completedAt) > new Date(completionDate))) {
+        completionDate = row.completedAt;
+      }
+    });
+    completionDate = completionDate ? new Date(completionDate) : new Date();
+
+    return {
+      eligible: true,
+      data: {
+        userName: user.namaLengkap, // Changed user.nama to user.namaLengkap
+        courseName: course.judul,
+        completionDate: completionDate.toISOString().split('T')[0],
+      },
+    };
+  } else {
+    return {
+      eligible: false,
+      message: 'Anda belum memenuhi syarat untuk mendapatkan sertifikat.',
+      reasons: reasons.length > 0 ? reasons : ['Syarat kelulusan belum terpenuhi.'],
+    };
+  }
+}
+
 
 // Check certificate eligibility for a course
 exports.checkCertificateEligibility = async (req, res) => {
@@ -624,114 +702,123 @@ exports.checkCertificateEligibility = async (req, res) => {
       return res.status(400).json({ status: 'fail', message: 'ID Kursus tidak valid.' });
     }
 
-    // 1. Fetch Course and User details
-    const course = await db.Course.findByPk(courseId);
-    const user = await db.User.findByPk(userId, { attributes: ['id', 'nama', 'email'] }); // Fetch user name
+    const eligibilityResult = await getCertificateEligibilityData(userId, courseId);
 
-    if (!course) {
-      return res.status(404).json({ status: 'fail', message: 'Kursus tidak ditemukan.' });
-    }
-    if (!user) {
-      return res.status(404).json({ status: 'fail', message: 'Pengguna tidak ditemukan.' });
-    }
-
-    // 2. Fetch UserProgress
-    const userProgress = await db.UserProgress.findOne({
-      where: { userId: userId, courseId: courseId },
-    });
-
-    if (!userProgress) {
-      return res.status(200).json({
-        status: 'success',
-        eligible: false,
-        message: 'Progres pengguna tidak ditemukan. Anda mungkin belum memulai kursus ini.',
-        reasons: ['Belum memulai kursus atau progres tidak tercatat.'],
-      });
-    }
-
-    const reasons = [];
-    let eligible = true;
-
-    // 3. Check Post-Test Score
-    if (course.needsPostTest) { // Assuming Course model has 'needsPostTest' and 'minimumPostTestScore'
-      if (userProgress.postTestScore === null || userProgress.postTestScore < (course.minimumPostTestScore || 70)) {
-        eligible = false;
-        reasons.push(`Skor post-test (${userProgress.postTestScore || 'Belum ada'}) di bawah minimum (${course.minimumPostTestScore || 70}).`);
-      }
-    } else {
-      // If no post-test is needed, this condition is met by default for certificate.
-      // Or, if a course *always* needs a post-test for a certificate, this logic might change.
-      // For now, assuming if needsPostTest is false, this check is passed.
-    }
-
-    // 4. Check Completion of all non-test modules
-    const contentModules = await db.Module.findAll({
-      where: {
-        courseId: courseId,
-        isPreTest: false,
-        isPostTest: false,
-      },
-      attributes: ['id'],
-    });
-
-    if (contentModules.length > 0) {
-      let allModulesCompleted = true;
-      for (const module of contentModules) {
-        if (!userProgress.progressDetails || !userProgress.progressDetails[module.id] || !userProgress.progressDetails[module.id].completed) {
-          allModulesCompleted = false;
-          reasons.push(`Modul konten (ID: ${module.id}) belum selesai.`);
-          // break; // Can break early if one module is not completed
-        }
-      }
-      if (!allModulesCompleted) {
-        eligible = false;
-        // Reason already added
-      }
-    } else {
-      // No content modules in the course. If post-test passed (or not required), then eligible.
-    }
-    
-    // 5. Check Enrollment (Implicitly handled by UserProgress existence, but good to be sure)
-    const enrollment = await db.Enrollment.findOne({ where: { userId: userId, courseId: courseId }});
-    if (!enrollment) {
-        eligible = false;
-        reasons.push('Anda tidak terdaftar di kursus ini.');
-    }
-
-
-    if (eligible) {
-      // Determine completion date - could be postTest submission date or last module completion date
-      let completionDate = userProgress.updatedAt; // Fallback to UserProgress update
-      // A more specific date could be found by looking at timestamps in progressDetails
-      // For example, the timestamp of the post-test completion or the last content module.
-      // This requires iterating through progressDetails and finding the latest relevant timestamp.
-      // For simplicity, using userProgress.updatedAt for now.
-
+    if (eligibilityResult.eligible) {
       res.status(200).json({
         status: 'success',
         eligible: true,
         message: 'Selamat! Anda berhak mendapatkan sertifikat.',
-        data: {
-          userName: user.nama,
-          courseName: course.judul,
-          completionDate: completionDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
-          // Potentially add instructorName if available on Course model
-        },
+        data: eligibilityResult.data,
       });
     } else {
       res.status(200).json({
-        status: 'success', // Still a successful check, just not eligible
+        status: 'success',
         eligible: false,
-        message: 'Anda belum memenuhi syarat untuk mendapatkan sertifikat.',
-        reasons: reasons,
+        message: eligibilityResult.message || 'Anda belum memenuhi syarat untuk mendapatkan sertifikat.',
+        reasons: eligibilityResult.reasons,
       });
     }
 
   } catch (error) {
     console.error('Error checking certificate eligibility:', error);
+    console.error(error.stack); // Log stack trace
     res.status(500).json({
       status: 'error',
       message: 'Gagal memeriksa kelayakan sertifikat.',
     });
+  }
+};
+
+// Download certificate for a course
+exports.downloadCertificate = async (req, res) => {
+  try {
+    const courseId = parseInt(req.params.courseId, 10);
+    if (!req.user || typeof req.user.id === 'undefined') {
+      return res.status(401).json({ status: 'fail', message: 'Autentikasi pengguna gagal.' });
+    }
+    const userId = req.user.id;
+
+    if (isNaN(courseId)) {
+      return res.status(400).json({ status: 'fail', message: 'ID Kursus tidak valid.' });
+    }
+
+    const eligibilityResult = await getCertificateEligibilityData(userId, courseId);
+
+    if (!eligibilityResult.eligible) {
+      return res.status(403).json({ // 403 Forbidden as they are not eligible
+        status: 'fail',
+        message: eligibilityResult.message || 'Anda tidak berhak mendapatkan sertifikat untuk kursus ini.',
+        reasons: eligibilityResult.reasons,
+      });
+    }
+
+    const { userName, courseName, completionDate } = eligibilityResult.data;
+
+    // Create a document
+    const doc = new PDFDocument({
+      size: 'A4',
+      layout: 'landscape',
+      margin: 50
+    });
+
+    // Set response headers
+    const filename = `Sertifikat-${courseName.replace(/\s+/g, '_')}-${userName.replace(/\s+/g, '_')}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    // Pipe its output to the response
+    doc.pipe(res);
+
+    // Add content
+    // Certificate Title
+    doc.fontSize(30).font('Helvetica-Bold').text('SERTIFIKAT KELULUSAN', { align: 'center' });
+    doc.moveDown(1.5);
+
+    // Awarded to
+    doc.fontSize(18).font('Helvetica').text('Dengan ini menyatakan bahwa:', { align: 'center' });
+    doc.moveDown(1);
+
+    // User Name
+    doc.fontSize(28).font('Helvetica-Bold').text(userName, { align: 'center' });
+    doc.moveDown(1);
+
+    // Has successfully completed
+    doc.fontSize(18).font('Helvetica').text('Telah berhasil menyelesaikan kursus:', { align: 'center' });
+    doc.moveDown(0.5);
+
+    // Course Name
+    doc.fontSize(24).font('Helvetica-Bold').text(courseName, { align: 'center' });
+    doc.moveDown(1.5);
+    
+    // Completion Date
+    doc.fontSize(16).font('Helvetica').text(`Pada tanggal: ${new Date(completionDate).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}`, { align: 'center' });
+    doc.moveDown(3);
+
+    // Placeholder for Signature
+    doc.fontSize(14).font('Helvetica').text('_________________________', { align: 'right', continued: false });
+    doc.moveDown(0.5);
+    doc.fontSize(14).font('Helvetica').text('Direktur Pelatihan', { align: 'right', continued: false });
+    doc.moveDown(0.2);
+    doc.fontSize(14).font('Helvetica').text('Nama Institusi', { align: 'right', continued: false });
+
+
+    // Finalize PDF file
+    doc.end();
+
+  } catch (error) {
+    console.error('Error generating certificate:', error);
+    console.error(error.stack); // Log stack trace
+    // Avoid sending PDF headers if an error occurs before doc.pipe(res)
+    if (!res.headersSent) {
+        res.status(500).json({
+            status: 'error',
+            message: 'Gagal membuat sertifikat.',
+        });
+    } else {
+        // If headers already sent, we can't send JSON, but we should end the response.
+        // The client might receive a partial/corrupted PDF.
+        res.end();
+    }
   }
 };

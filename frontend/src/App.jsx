@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useEffect } from 'react';
-import { AuthProvider } from './hooks/useAuth'; // Import AuthProvider
+import { AuthProvider } from './contexts/AuthContext'; // Corrected Import AuthProvider
 import Login from './pages/Login';
 import RegisterPage from './pages/RegisterPage';
 import Home from './pages/Home';
@@ -16,15 +16,16 @@ import AdminRoute from './components/Auth/AdminRoute';
 import AdminUsersPage from './pages/AdminUsersPage';
 import CourseDetailPage from './pages/CourseDetailPage';
 import PreTestPage from './pages/PreTestPage';
+import PreTestResultPage from './pages/PreTestResultPage'; // Added PreTestResultPage
 import CourseContentPage from './pages/CourseContentPage';
 import PostTestPage from './pages/PostTestPage'; // Import PostTestPage
 import PostTestResultPage from './pages/PostTestResultPage'; // Import PostTestResultPage
+import CourseManagement from './components/Admin/CourseManagement'; // Import CourseManagement for admin courses
+import AdminContentPage from './pages/AdminContentPage'; // Import AdminContentPage
 
 // Placeholder Admin Pages for routing
-const AdminCourses = () => <div className="p-6 bg-white rounded-lg shadow-md"><h1 className="text-2xl font-semibold">Manage Courses</h1><p className="mt-2 text-gray-600">Course CRUD operations will be implemented here.</p></div>;
-const AdminContent = () => <div className="p-6 bg-white rounded-lg shadow-md"><h1 className="text-2xl font-semibold">Manage Content</h1><p className="mt-2 text-gray-600">Content (videos, articles, quizzes) CRUD operations will be implemented here.</p></div>;
+const AdminContent = AdminContentPage;
 const AdminSettings = () => <div className="p-6 bg-white rounded-lg shadow-md"><h1 className="text-2xl font-semibold">Admin Settings</h1><p className="mt-2 text-gray-600">Various admin-specific settings will be configured here.</p></div>;
-
 
 export default function App() {
   useEffect(() => {
@@ -88,6 +89,17 @@ export default function App() {
             </PrivateRoute>
           }
         />
+        {/* Pre-Test Result Route */}
+        <Route
+            path="/course/:courseId/pretest-result"
+            element={
+            <PrivateRoute>
+              <UserLayout>
+                <PreTestResultPage />
+              </UserLayout>
+            </PrivateRoute>
+          }
+        />
         {/* Course Content Route */}
         <Route
           path="/course/:courseId/content" // General content page
@@ -138,7 +150,7 @@ export default function App() {
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<AdminDashboard />} /> 
               <Route path="users" element={<AdminUsersPage />} />
-              <Route path="courses" element={<AdminCourses />} />
+              <Route path="courses" element={<CourseManagement />} /> {/* Replace placeholder with CourseManagement component */}
               <Route path="content" element={<AdminContent />} />
               <Route path="settings" element={<AdminSettings />} />
               {/* Add other nested admin routes here as needed */}

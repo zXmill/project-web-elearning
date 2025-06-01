@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import YouTube from 'react-youtube';
 import { Document, Page, pdfjs } from 'react-pdf';
 import api from '../services/api';
+import { fetchUserProgress } from '../services/progress';
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.js`;
@@ -22,7 +23,7 @@ const CourseContentPage = () => {
   // PDF Viewer State
   const [numPages, setNumPages] = useState(null);
   const [currentPageNumber, setCurrentPageNumber] = useState(1);
-
+  const [userProgress, setUserProgress] = useState(null);
 
   useEffect(() => {
     const fetchCourseContentData = async () => {
@@ -60,8 +61,18 @@ const CourseContentPage = () => {
       }
     };
 
+    const fetchProgress = async () => {
+      try {
+        const progressData = await fetchUserProgress(courseId);
+        setUserProgress(progressData.data);
+      } catch (err) {
+        // Ignore progress error for now
+      }
+    };
+
     if (courseId) {
       fetchCourseContentData();
+      fetchProgress();
     }
   }, [courseId, moduleId]); // Add moduleId to dependency array if used for direct navigation
 
@@ -210,6 +221,14 @@ const CourseContentPage = () => {
               className="w-full h-full" // Ensure it fills the container
             />
           </div>
+        )}
+      </div>
+
+      <div className="mt-4 text-sm text-gray-500">
+        {userProgress && (
+          <>
+            <div>Modul selesai: {userProgress.completedModules ?? 0} / {modules.length}</div>
+          </>
         )}
       </div>
 
