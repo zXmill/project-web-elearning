@@ -17,9 +17,10 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
     },
     contentText: { type: DataTypes.TEXT, allowNull: true }, // For instructions (e.g., for QUIZ types) or simple text content
-    pageContent: { type: DataTypes.JSON, allowNull: true }, // For 'PAGE' type, stores structured content (e.g., blocks for text, video, PDF)
-    pdfPath: { type: DataTypes.STRING, allowNull: true },    // Legacy: For 'pdf' type, will be superseded by pageContent for PAGE type
-    videoLink: { type: DataTypes.STRING, allowNull: true },  // Legacy: For 'video' type, will be superseded by pageContent for PAGE type
+    initialContent: { type: DataTypes.TEXT, allowNull: true }, // For PAGE type, stores HTML from Rich Text Editor - TO BE ADDED BY NEW MIGRATION
+    pageContent: { type: DataTypes.JSON, allowNull: true }, // For 'PAGE' type (structured content) or QUIZ type (JSON questions). Is JSON in existing migration.
+    pdfPath: { type: DataTypes.STRING, allowNull: true },    // Legacy: For 'pdf' type
+    videoLink: { type: DataTypes.STRING, allowNull: true },  // Legacy: For 'video' type
     order: { type: DataTypes.INTEGER, allowNull: false },   // For sequencing modules
   });
 

@@ -1,22 +1,56 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
+import { useCourseProgress } from '../contexts/CourseProgressContext';
 
 const PreTestResultPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { courseId } = useParams();
-  // Ensure all expected state properties are destructured, add moduleId if needed
+  const { 
+    markModuleAsCompleted, 
+    modules: contextModules,
+    fetchCourseProgressAndModules, 
+    currentCourseId,
+    isModuleCompleted,
+    getPreTestModule 
+  } = useCourseProgress();
+
+  const [markingError, setMarkingError] = useState('');
+
   const { results, score, totalQuestions, percentage, courseTitle, moduleTitle, questions: allQuestions } = location.state || {};
 
-  const PASSING_PERCENTAGE = 0; // Pre-test might not have a strict "passing" concept for progression
+  useEffect(() => {
+    if (courseId && (!contextModules || contextModules.length === 0 || courseId !== currentCourseId)) {
+      fetchCourseProgressAndModules(courseId);
+    }
+  }, [courseId, contextModules, currentCourseId, fetchCourseProgressAndModules]);
+
+  useEffect(() => {
+    const markPreTestAsDone = async () => {
+      if (results && contextModules && contextModules.length > 0) {
+        const preTestModule = getPreTestModule(); 
+
+        if (preTestModule && !isModuleCompleted(preTestModule.id)) {
+          try {
+            setMarkingError(''); 
+            await markModuleAsCompleted(preTestModule.id);
+          } catch (error) {
+            console.error('Error marking pre-test as completed:', error);
+            setMarkingError('Terjadi kesalahan saat menyimpan progres pre-test Anda. Anda tetap dapat melanjutkan.');
+          }
+        }
+      }
+    };
+
+    markPreTestAsDone();
+  }, [results, contextModules, getPreTestModule, isModuleCompleted, markModuleAsCompleted, courseId]);
 
   if (!results || !allQuestions) {
-    // Handle case where state is not passed (e.g., direct navigation)
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <p>Hasil pre-test tidak tersedia. Silakan coba kerjakan pre-test terlebih dahulu.</p>
         <button 
-            onClick={() => navigate(`/course/${courseId}/pretest`)} // Navigate back to pre-test
+            onClick={() => navigate(`/course/${courseId}/pretest`)}
             className="mt-4 px-6 py-2 bg-teraplus-accent text-white rounded-lg hover:opacity-90"
         >
             Kembali ke Pre-Test
@@ -25,10 +59,49 @@ const PreTestResultPage = () => {
     );
   }
 
-  // isPassed might not be relevant for pre-test, or used differently.
-  // For now, we can keep the logic if we want to show a similar message.
-  const isPassed = percentage >= PASSING_PERCENTAGE; 
   const date = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+
+  const handleContinueToMaterial = () => {
+    if (!contextModules || contextModules.length === 0) {
+      navigate(`/course/${courseId}`); // Fallback to course detail
+      return;
+    }
+  
+    const preTestModule = getPreTestModule();
+    let startIndex = 0;
+    if (preTestModule) {
+      const preTestIndex = contextModules.findIndex(m => m.id === preTestModule.id);
+      if (preTestIndex !== -1) {
+        startIndex = preTestIndex + 1;
+      }
+    }
+  
+    let firstActualContentModule = null;
+    for (let i = startIndex; i < contextModules.length; i++) {
+      const module = contextModules[i];
+      // Look for typical content types, excluding quiz types
+      if (module.type === 'PAGE' || module.type === 'pdf' || module.type === 'web') {
+        firstActualContentModule = module;
+        break;
+      }
+    }
+  
+    if (firstActualContentModule) {
+      navigate(`/course/${courseId}/content/${firstActualContentModule.id}`);
+    } else {
+      // If no typical content module is found next, try to find a post-test
+      const postTestModule = contextModules.find(m => m.type === 'POST_TEST_QUIZ');
+      if (postTestModule) {
+         // If CourseContentPage is smart enough to redirect POST_TEST_QUIZ to /posttest,
+         // then navigating to its content/:id page is fine.
+         // Otherwise, navigate directly to /posttest
+        navigate(`/course/${courseId}/content/${postTestModule.id}`); 
+        // Or, more directly: navigate(`/course/${courseId}/posttest`);
+      } else {
+        navigate(`/course/${courseId}`); // Fallback to course detail page if no content or post-test
+      }
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
@@ -36,10 +109,10 @@ const PreTestResultPage = () => {
         <div className="flex justify-between items-start mb-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-teraplus-text-default">Hasil Pre-Test</h1>
-            <p className="text-sm text-gray-500">{moduleTitle || courseTitle}</p>
+            <p className="text-sm text-gray-500">{moduleTitle || courseTitle || `Kursus ${courseId}`}</p>
           </div>
           <button 
-            onClick={() => navigate(`/course/${courseId}/content`)} // Navigate to course content
+            onClick={() => navigate(`/course/${courseId}/content`)}
             className="text-xl font-bold text-gray-400 hover:text-gray-600"
             title="Lanjutkan ke Materi Kursus"
           >
@@ -47,12 +120,17 @@ const PreTestResultPage = () => {
           </button>
         </div>
 
+        {markingError && (
+          <div className="mb-4 p-3 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700">
+            <p>{markingError}</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="md:col-span-1 p-4 border rounded-md bg-gray-50">
             <p className="text-sm text-gray-600">Tanggal Ujian: {date}</p>
             <p className="text-sm text-gray-600 mt-1">Total Soal: {totalQuestions}</p>
-            <p className="text-2xl font-bold mt-2">Skor: {score} <span className="text-lg font-normal">/ {totalQuestions}</span> ({percentage.toFixed(0)}%)</p>
-            {/* Informational message based on score, less about "passing" for pre-test */}
+            <p className="text-2xl font-bold mt-2">Skor: {score} <span className="text-lg font-normal">/ {totalQuestions}</span> ({percentage !== undefined && percentage !== null ? percentage.toFixed(0) : 0}%)</p>
             <p className="mt-2 text-gray-700">
               Ini adalah skor awal Anda. Gunakan hasil ini untuk fokus pada area yang perlu ditingkatkan selama kursus.
             </p>
@@ -61,7 +139,6 @@ const PreTestResultPage = () => {
             <h2 className="text-xl font-semibold text-teraplus-text-default mb-4">Rincian Jawaban:</h2>
             <div className="space-y-6 max-h-[500px] overflow-y-auto pr-2">
               {results.map((item, index) => {
-                // Find the full question object to access its explanation, if available
                 const questionDetail = allQuestions.find(q => q.id === item.questionId);
                 const explanation = questionDetail ? questionDetail.explanation : null;
 
@@ -84,7 +161,7 @@ const PreTestResultPage = () => {
                             ${opt.id === item.correctOptionId ? 'bg-green-500 text-white border-green-500' : 'border-gray-300'}
                             ${opt.id === item.selectedOptionId && opt.id !== item.correctOptionId ? 'bg-red-500 text-white border-red-500' : ''}
                           `}>
-                            {String.fromCharCode(65 + item.options.indexOf(opt))} {/* A, B, C, D */}
+                            {String.fromCharCode(65 + item.options.indexOf(opt))}
                           </span>
                           <span>{opt.text}</span>
                           {opt.id === item.selectedOptionId && !item.isCorrect && (
@@ -113,7 +190,7 @@ const PreTestResultPage = () => {
         
         <div className="text-center mt-8">
             <button 
-                onClick={() => navigate(`/course/${courseId}/content`)}
+                onClick={handleContinueToMaterial}
                 className="px-8 py-3 bg-teraplus-accent text-white font-semibold rounded-lg hover:opacity-90 transition-colors"
             >
                 Lanjutkan ke Materi Kursus

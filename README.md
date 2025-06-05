@@ -32,8 +32,8 @@ Project E-Learning Unesa is a comprehensive e-learning platform featuring a mode
 ### Assessment & Certification
 - [x] Quizzes/assessments within modules
 - [x] Automatic grading for quizzes
-- [ ] Certificate generation upon course completion
-- [ ] View and download certificates
+- [x] Certificate download upon course completion (currently serves a dummy PDF: `dokumen/sertif.pdf`)
+- [ ] View certificate page (frontend route `/course/:courseId/certificate` is planned)
 
 ## How to Use
 
@@ -44,8 +44,9 @@ Project E-Learning Unesa is a comprehensive e-learning platform featuring a mode
    ```
 2. **Navigate to the Project Root:**
    ```bash
-   cd e:\project_elearning\e-learning_unesa
+   cd project-web-elearning 
    ```
+   (Or the name you cloned the repository as)
 3. **Install Dependencies:**
    - From the `backend` folder:
      ```bash
@@ -91,7 +92,18 @@ FRONTEND_URL=http://localhost:3000
 2. **Seed the Database:**
    ```powershell
    node scripts/seedCourses.js
+   # You might also need to run: node scripts/seedRemainingModulesAndQuestions.js
    ```
+   The seeding process creates a default user. Credentials can be found in `dokumen/credentials.txt`:
+   - **Email:** `test@teraplus.com`
+   - **Password:** `password123`
+   This user may have admin privileges.
+
+## Default User Credentials
+After seeding the database, a default user account is available for testing:
+- **Email:** `test@teraplus.com`
+- **Password:** `password123`
+This account may have administrative privileges depending on the seed data.
 
 ## Testing
 
@@ -110,9 +122,14 @@ FRONTEND_URL=http://localhost:3000
     npm test
     ```
 
-## Certificate Generation & Download
+## Certificate Download
 
-- Certificate generation is planned. When available, you will be able to download certificates from the course completion page.
+- Upon completing a course and its post-test, users can download a certificate from the post-test results page.
+- Currently, the system serves a **dummy certificate** located at `dokumen/sertif.pdf` (downloaded as `sertifikat_kompetensi.pdf`).
+- **Future Enhancements:**
+    - Dynamic certificate generation using a template (e.g., `dokumen/sertif.png`).
+    - A "Confirm Name" modal will allow users to verify their name before the certificate is generated with their actual name.
+    - A dedicated page to view certificates online (planned for frontend route `/course/:courseId/certificate`).
 
 ## Additional Notes
 - **.env Files:**  

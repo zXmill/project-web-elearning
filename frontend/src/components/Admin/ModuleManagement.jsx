@@ -47,10 +47,26 @@ const ModuleManagement = ({ courseId }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      let payload = { ...formData }; // Create a copy to modify
+
+      if (payload.type === 'PAGE') {
+        payload.initialContent = payload.pageContent; // Move/copy editor content to initialContent
+        payload.pageContent = null;                   // Nullify pageContent for PAGE type as initialContent is primary
+      }
+      // Note: If pageContent is used for JSON in QUIZ types, ensure this logic is appropriate
+      // or that QUIZ types don't incorrectly populate formData.pageContent via the RichTextEditor.
+      // Currently, RichTextEditor is only shown for formData.type === 'PAGE'.
+
       if (editingModule) {
-        await api.put(`/admin/modules/${editingModule.id}`, formData);
+        await api.put(`/admin/modules/${editingModule.id}`, payload); // Send modified payload
       } else {
-        await api.post(`/admin/courses/${courseId}/modules`, formData);
+        // For creating new modules, ensure initialContent is handled if type is PAGE
+        if (payload.type === 'PAGE' && payload.initialContent === undefined && payload.pageContent !== undefined) {
+            // This case might occur if resetForm() sets pageContent and it's not yet moved to initialContent
+            payload.initialContent = payload.pageContent;
+            payload.pageContent = null;
+        }
+        await api.post(`/admin/courses/${courseId}/modules`, payload); // Send modified payload
       }
       setShowModal(false);
       setEditingModule(null);
@@ -64,15 +80,26 @@ const ModuleManagement = ({ courseId }) => {
 
   const handleEdit = (module) => {
     setEditingModule(module);
+    let editorContent = null;
+
+    if (module.type === 'PAGE') {
+      // For PAGE type, RichTextEditor is bound to formData.pageContent.
+      // So, populate formData.pageContent with module.initialContent.
+      editorContent = module.initialContent || module.pageContent || ''; // Prioritize initialContent
+    } else {
+      // For other types (e.g., QUIZ), pageContent might hold JSON.
+      // The RichTextEditor is not shown for these.
+      editorContent = module.pageContent || null;
+    }
+
     setFormData({
       judul: module.judul || '',
       type: module.type || 'PAGE',
       contentText: module.contentText || '',
-      pdfPath: module.pdfPath || '', // Retain for now for potential old data display
-      videoLink: module.videoLink || '', // Retain for now for potential old data display
-      pageContent: module.pageContent || null,
+      pdfPath: module.pdfPath || '', 
+      videoLink: module.videoLink || '', 
+      pageContent: editorContent, // This will be used by RichTextEditor if type is PAGE
       order: module.order || 0,
-      // isPreTest, isPostTest, hasQuiz are removed
     });
     setShowModal(true);
   };

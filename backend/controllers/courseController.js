@@ -165,7 +165,7 @@ exports.getCourseModules = async (req, res) => {
         type: { [Op.notIn]: ['PRE_TEST_QUIZ', 'POST_TEST_QUIZ'] } // Correct ENUM values
       },
       order: [['order', 'ASC']], // Order by the 'order' field
-      attributes: ['id', 'judul', 'type', 'contentText', 'pdfPath', 'videoLink', 'order']
+      attributes: ['id', 'judul', 'type', 'contentText', 'initialContent', 'pdfPath', 'videoLink', 'order']
     });
 
     if (!modules || modules.length === 0) {
@@ -530,33 +530,48 @@ exports.getUserProgressForCourse = async (req, res) => {
     if (!course) {
       return res.status(404).json({ status: 'fail', message: 'Kursus tidak ditemukan.' });
     }
+
+    // Ensure enrollment
+    let enrollment = await db.Enrollment.findOne({ where: { userId: userId, courseId: courseId }});
+    if (!enrollment) {
+      // If not enrolled, create enrollment
+      try {
+        enrollment = await db.Enrollment.create({
+          userId: userId,
+          courseId: courseId,
+        });
+        // Optionally log this auto-enrollment
+        console.log(`User ${userId} auto-enrolled in course ${courseId}`);
+      } catch (enrollError) {
+        // Handle potential errors during enrollment creation (e.g., DB issues)
+        console.error('Error auto-enrolling user:', enrollError);
+        return res.status(500).json({ status: 'error', message: 'Gagal memproses pendaftaran kursus secara otomatis.' });
+      }
+    }
     
     // Fetch all UserProgress records for this user and course
     const userProgressRows = await db.UserProgress.findAll({
       where: { userId: userId, courseId: courseId },
+      attributes: ['moduleId', 'completedAt', 'score', 'lastAccessedAt'], // Specify attributes
     });
 
-    if (!userProgressRows || userProgressRows.length === 0) {
-      const enrollment = await db.Enrollment.findOne({ where: { userId: userId, courseId: courseId }});
-      if (enrollment) {
-        // User is enrolled but has no progress, return default/empty progress
-        return res.status(200).json({
-          status: 'success',
-          message: 'Pengguna terdaftar tetapi belum ada progres.',
-          data: {
-            courseId: courseId,
-            userId: userId,
-            completedModules: 0,
-            // Any other default fields from UserProgress model
-          },
-        });
-      } else {
-        // Not enrolled, so no progress to show
-        return res.status(403).json({ status: 'fail', message: 'Anda tidak terdaftar di kursus ini.' });
-      }
-    }
+    // Fetch all modules for the course
+    const modules = await db.Module.findAll({
+      where: { courseId: courseId },
+      order: [['order', 'ASC']],
+      // Specify attributes needed by the frontend context
+      attributes: ['id', 'judul', 'type', 'order', 'initialContent', 'contentText', 'videoLink', 'pdfPath', 'courseId'] // Removed quizId
+    });
 
-    // Calculate completed modules
+    if (!modules || modules.length === 0) {
+      // This case should ideally not happen if a course exists, but good to handle
+      // If the course has no modules, the frontend should still get an empty modules array.
+    }
+    
+    // userProgressRows will be an empty array if no progress, which is fine.
+    // The enrollment check that returned 403 is now removed as enrollment is guaranteed.
+    // completedModulesCount can be calculated on the frontend from userProgressRows if needed,
+    // or kept here for convenience.
     let completedModulesCount = 0;
     userProgressRows.forEach(row => {
       if (row.completedAt) completedModulesCount++;
@@ -564,10 +579,12 @@ exports.getUserProgressForCourse = async (req, res) => {
 
     res.status(200).json({
       status: 'success',
-      message: 'Progres pengguna berhasil diambil.',
+      message: 'Modul dan progres pengguna berhasil diambil.',
       data: {
-        progress: userProgressRows,
-        completedModules: completedModulesCount,
+        courseTitle: course.judul, // Added course title to the response
+        modules: modules, // Include the modules array
+        userProgress: userProgressRows, // Standardize to 'userProgress'
+        // completedModulesCount: completedModulesCount, // Optional: if frontend still wants this pre-calculated
       },
     });
 
@@ -705,11 +722,20 @@ exports.checkCertificateEligibility = async (req, res) => {
     const eligibilityResult = await getCertificateEligibilityData(userId, courseId);
 
     if (eligibilityResult.eligible) {
+      // Construct fileName similar to how it's done in downloadCertificate
+      const courseNameForFile = eligibilityResult.data.courseName.replace(/\s+/g, '_');
+      const userNameForFile = eligibilityResult.data.userName.replace(/\s+/g, '_');
+      const fileName = `Sertifikat-${courseNameForFile}-${userNameForFile}.pdf`;
+
       res.status(200).json({
         status: 'success',
         eligible: true,
         message: 'Selamat! Anda berhak mendapatkan sertifikat.',
-        data: eligibilityResult.data,
+        data: {
+          ...eligibilityResult.data,
+          certificateUrl: `/api/courses/${courseId}/certificate/download`, // Relative URL for API
+          fileName: fileName,
+        },
       });
     } else {
       res.status(200).json({

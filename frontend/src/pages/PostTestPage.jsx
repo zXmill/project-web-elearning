@@ -1,17 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useCourseProgress } from '../contexts/CourseProgressContext'; // Import context
 
 const PostTestPage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const { 
+    modules: contextModules, 
+    fetchCourseProgressAndModules, 
+    isLoading: progressContextIsLoading, 
+    currentCourseId: contextCourseIdForProgress 
+  } = useCourseProgress();
+
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState({}); // { questionId: optionId }
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // For questions loading
   const [error, setError] = useState('');
   const [courseTitle, setCourseTitle] = useState('');
   const [moduleTitle, setModuleTitle] = useState('');
+  // const [previousContentModule, setPreviousContentModule] = useState(null); // Replaced by useMemo
+
+  useEffect(() => {
+    // Fetch modules from context if not available for this course
+    if (courseId && (!contextCourseIdForProgress || contextCourseIdForProgress !== courseId)) {
+      fetchCourseProgressAndModules(courseId);
+    }
+  }, [courseId, contextCourseIdForProgress, fetchCourseProgressAndModules]);
+  
+  const previousContentModule = useMemo(() => {
+    if (!contextModules || contextModules.length === 0 || progressContextIsLoading) {
+      return null;
+    }
+    // Ensure module types are consistent or cover all possibilities from backend/seed and frontend expectations
+    const postTestModuleTypes = ['post_test', 'POST_TEST_QUIZ']; 
+    const contentModuleTypes = ['PAGE', 'text', 'pdf', 'web', 'VIDEO', 'video'];
+
+    const postTestModuleIndex = contextModules.findIndex(m => postTestModuleTypes.includes(m.type));
+
+    if (postTestModuleIndex > 0) {
+      for (let i = postTestModuleIndex - 1; i >= 0; i--) {
+        const mod = contextModules[i];
+        if (contentModuleTypes.includes(mod.type)) {
+          return mod;
+        }
+      }
+    }
+    return null;
+  }, [contextModules, progressContextIsLoading]);
+
 
   useEffect(() => {
     const fetchPostTestQuestions = async () => {
@@ -155,11 +193,17 @@ const PostTestPage = () => {
 
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <button
-            onClick={handlePrevious}
-            disabled={currentQuestionIndex === 0}
+            onClick={() => {
+              if (currentQuestionIndex === 0 && previousContentModule) {
+                navigate(`/course/${courseId}/content/${previousContentModule.id}`);
+              } else {
+                handlePrevious(); // Original handler for previous question
+              }
+            }}
+            disabled={(currentQuestionIndex === 0 && !previousContentModule) || progressContextIsLoading}
             className="w-full sm:w-auto px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 disabled:opacity-50 transition-colors"
           >
-            Sebelumnya
+            {currentQuestionIndex === 0 && previousContentModule ? 'Kembali ke Modul' : 'Sebelumnya'}
           </button>
           {currentQuestionIndex === questions.length - 1 ? (
              <button

@@ -106,7 +106,8 @@ exports.createModule = async (req, res) => {
     // For now, we primarily handle contentText and pageContent (which might be null from frontend initially)
     let pdfPathValue = null;
     let videoLinkValue = null;
-    let pageContentValue = req.body.pageContent || null; // Expecting pageContent from body
+    // let pageContentValue = req.body.pageContent || null; // Old: using pageContent
+    let initialContentValue = req.body.initialContent || null; // New: expecting initialContent for rich text
 
     // If order is not provided, place at the end
     let moduleOrder = parseInt(order, 10);
@@ -123,10 +124,11 @@ exports.createModule = async (req, res) => {
       courseId: parseInt(courseId, 10),
       judul,
       type,
-      contentText: contentText || null, // contentText is used for description/instructions for all new types
-      pageContent: pageContentValue,    // For PAGE type's structured content, or QUIZ questions later
-      pdfPath: pdfPathValue,            // Nullify legacy field
-      videoLink: videoLinkValue,        // Nullify legacy field
+      contentText: contentText || null, // contentText can still be used for simple descriptions if needed
+      initialContent: initialContentValue, // Save rich text to initialContent
+      pageContent: null, // Explicitly nullify pageContent if initialContent is primary for PAGE type
+      pdfPath: pdfPathValue,
+      videoLink: videoLinkValue,
       order: moduleOrder
     });
 
@@ -153,6 +155,7 @@ exports.createModule = async (req, res) => {
 
 // Update module
 exports.updateModule = async (req, res) => {
+  console.log('Update Module Request Body:', req.body); // Add this line for debugging
   try {
     const { moduleId } = req.params; // Changed from id to moduleId for clarity
     const {
@@ -197,11 +200,19 @@ exports.updateModule = async (req, res) => {
     const currentModuleType = module.type;
 
     if (contentText !== undefined) {
-      module.contentText = contentText;
+      module.contentText = contentText; // Keep for simple text if provided
     }
-    if (req.body.pageContent !== undefined) { // pageContent can be explicitly set to null
-      module.pageContent = req.body.pageContent;
+    // if (req.body.pageContent !== undefined) { // Old: using pageContent
+    //   module.pageContent = req.body.pageContent;
+    // }
+    if (req.body.initialContent !== undefined) { // New: update initialContent for rich text
+      module.initialContent = req.body.initialContent;
+      // If initialContent is being set, pageContent might need to be cleared
+      // if they are mutually exclusive for PAGE type.
+      // For now, just ensure initialContent is saved.
+      // module.pageContent = null; // Consider this if pageContent should be cleared
     }
+
 
     // If type changed to one of the new types, or if it's already a new type,
     // ensure legacy fields are nulled.

@@ -9,62 +9,79 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true); // To track initial auth status check
   const [error, setError] = useState(null); // Added error state
 
-  useEffect(() => {
-    const checkLoggedInUser = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          const decodedUser = jwtDecode(token);
-          const currentTime = Date.now() / 1000;
+  const performAuthCheck = useCallback(async () => {
+    setLoading(true); // Ensure loading is true at the start of an auth check
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const decodedUser = jwtDecode(token);
+        const currentTime = Date.now() / 1000;
 
-          if (decodedUser.exp < currentTime) {
-            // Token expired
-            localStorage.removeItem('token');
-            localStorage.removeItem('userEmail');
-            localStorage.removeItem('userName');
-            localStorage.removeItem('userRole');
-            setUser(null);
-            delete api.defaults.headers.common['Authorization'];
-            setError('Session expired. Please login again.');
-          } else {
-            // Token valid
-            let userToSet = decodedUser;
-            api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-            
-            // Attempt to fetch full profile to enrich user context
-            try {
-              const profileResponse = await api.get('/auth/profile');
-              if (profileResponse.data && profileResponse.data.status === 'success') {
-                const fullUserProfile = profileResponse.data.data.user;
-                userToSet = { ...decodedUser, ...fullUserProfile }; // Merge token data with profile data
-              }
-            } catch (profileError) {
-              console.error("AuthContext: Failed to fetch full profile during initial check", profileError);
-              // userToSet remains the decodedUser from token
-            }
-            
-            setUser(userToSet); // Set user state once with the most complete data
-            
-            // Persist details to localStorage based on the final userToSet
-            localStorage.setItem('userEmail', userToSet.email);
-            if (userToSet.namaLengkap) localStorage.setItem('userName', userToSet.namaLengkap);
-            localStorage.setItem('userRole', userToSet.role);
-          }
-        } catch (e) {
-          console.error("Invalid token on load:", e);
+        if (decodedUser.exp < currentTime) {
           localStorage.removeItem('token');
           localStorage.removeItem('userEmail');
           localStorage.removeItem('userName');
           localStorage.removeItem('userRole');
           setUser(null);
           delete api.defaults.headers.common['Authorization'];
-          setError('Invalid session. Please login again.');
-        }
+          setError('Session expired. Please login again.');
+        } else {
+          let userToSet = decodedUser;
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          try {
+              const profileResponse = await api.get('/auth/profile');
+              if (profileResponse.data && profileResponse.data.status === 'success') {
+                const fullUserProfile = profileResponse.data.data.user;
+                userToSet = { ...decodedUser, ...fullUserProfile };
+              }
+            } catch (profileError) {
+              console.error("AuthContext: Failed to fetch full profile during auth check", profileError);
+            }
+            
+            setUser(userToSet);
+            // Update localStorage with potentially more complete info from profile
+            localStorage.setItem('userEmail', userToSet.email);
+            if (userToSet.namaLengkap) {
+              localStorage.setItem('userName', userToSet.namaLengkap);
+            } else {
+              localStorage.removeItem('userName'); // Remove if not present
+            }
+            localStorage.setItem('userRole', userToSet.role);
+            setError(null); // Clear previous errors on successful auth
+          }
+        } catch (e) {
+          console.error("Invalid token during auth check:", e);
+        localStorage.removeItem('token');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userRole');
+        setUser(null);
+        delete api.defaults.headers.common['Authorization'];
+        setError('Invalid session. Please login again.');
       }
-      setLoading(false);
+    } else {
+      // No token found, ensure user is null and auth header is clear
+      setUser(null);
+      delete api.defaults.headers.common['Authorization'];
+      // setError('No session found.'); // Optional: set error if no token is expected
+    }
+    setLoading(false);
+  }, [setUser, setLoading, setError]); // Dependencies for performAuthCheck
+
+  useEffect(() => {
+    performAuthCheck(); // Initial auth check on mount
+  }, [performAuthCheck]);
+
+  useEffect(() => {
+    const handleAuthTokenProcessed = () => {
+      performAuthCheck();
     };
-    checkLoggedInUser();
-  }, []);
+
+    window.addEventListener('auth-token-processed', handleAuthTokenProcessed);
+    return () => {
+      window.removeEventListener('auth-token-processed', handleAuthTokenProcessed);
+    };
+  }, [performAuthCheck]);
 
   const login = useCallback(async (credentials) => {
     setLoading(true);
@@ -98,18 +115,18 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('userRole', userToSet.role);
         
         setLoading(false);
-        return true;
+        return userToSet; // Return the user object on success
       } else {
         setError(response.data?.message || 'Login failed: No token received');
         setLoading(false);
-        return false;
+        return null; // Return null on failure (no token)
       }
     } catch (err) {
       console.error("Login error:", err);
       const errorMessage = err.response?.data?.message || err.message || 'An unknown error occurred during login.';
       setError(errorMessage);
       setLoading(false);
-      return false;
+      return null; // Return null on error
     }
   }, [setUser, setLoading, setError]); // Dependencies for useCallback
 

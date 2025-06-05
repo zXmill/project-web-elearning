@@ -1,18 +1,59 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useCourseProgress } from '../contexts/CourseProgressContext'; // Import context
 
 const PreTestPage = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const { 
+    modules: contextModules, 
+    fetchCourseProgressAndModules, 
+    isLoading: progressContextIsLoading, 
+    currentCourseId: contextCourseIdForProgress 
+  } = useCourseProgress();
+
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedOptions, setSelectedOptions] = useState({}); // Store user's answers { questionId: optionId }
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // For questions loading
   const [error, setError] = useState('');
   const [courseTitle, setCourseTitle] = useState('');
   const [moduleTitle, setModuleTitle] = useState('');
-  const [preTestModuleId, setPreTestModuleId] = useState(null); // Added state for preTestModuleId
+  const [preTestModuleId, setPreTestModuleId] = useState(null); 
+
+  useEffect(() => {
+    // Fetch modules from context if not available for this course
+    if (courseId && (!contextCourseIdForProgress || contextCourseIdForProgress !== courseId)) {
+      fetchCourseProgressAndModules(courseId);
+    }
+  }, [courseId, contextCourseIdForProgress, fetchCourseProgressAndModules]);
+
+  const navigationTargetForBackButton = useMemo(() => {
+    if (!contextModules || contextModules.length === 0 || progressContextIsLoading) {
+      return null; 
+    }
+    const preTestModuleTypes = ['pre_test', 'PRE_TEST_QUIZ']; 
+    const contentModuleTypes = ['PAGE', 'text', 'pdf', 'web', 'VIDEO', 'video'];
+
+    const preTestModuleIndex = contextModules.findIndex(m => preTestModuleTypes.includes(m.type));
+
+    if (preTestModuleIndex === -1) { 
+      return { type: 'course_detail' }; // Fallback if pre-test module itself isn't found in context (shouldn't happen)
+    }
+
+    if (preTestModuleIndex > 0) {
+      for (let i = preTestModuleIndex - 1; i >= 0; i--) {
+        const mod = contextModules[i];
+        if (contentModuleTypes.includes(mod.type)) {
+          return { type: 'module', data: mod };
+        }
+      }
+      return { type: 'course_detail' }; // No preceding content module found
+    } else {
+      return { type: 'course_detail' }; // Pre-test is the first module
+    }
+  }, [contextModules, progressContextIsLoading]);
 
   useEffect(() => {
     const fetchPreTestQuestions = async () => {
@@ -173,11 +214,23 @@ const PreTestPage = () => {
 
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <button
-            onClick={handlePrevious}
-            disabled={currentQuestionIndex === 0}
+            onClick={() => {
+              if (currentQuestionIndex === 0 && navigationTargetForBackButton) {
+                if (navigationTargetForBackButton.type === 'module') {
+                  navigate(`/course/${courseId}/content/${navigationTargetForBackButton.data.id}`);
+                } else { // type === 'course_detail'
+                  navigate(`/course/${courseId}`);
+                }
+              } else {
+                handlePrevious(); // Original handler for previous question
+              }
+            }}
+            disabled={(currentQuestionIndex === 0 && !navigationTargetForBackButton) || progressContextIsLoading}
             className="w-full sm:w-auto px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 disabled:opacity-50 transition-colors"
           >
-            Sebelumnya
+            {currentQuestionIndex === 0 && navigationTargetForBackButton ? 
+              (navigationTargetForBackButton.type === 'module' ? 'Kembali ke Modul' : 'Kembali ke Detail Kursus') : 
+              'Sebelumnya'}
           </button>
           {currentQuestionIndex === questions.length - 1 ? (
              <button

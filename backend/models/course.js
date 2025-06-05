@@ -7,6 +7,8 @@ module.exports = (sequelize, DataTypes) => {
     area: { type: DataTypes.STRING, allowNull: true },     // For filtering by body area
     syaratDanKetentuan: { type: DataTypes.TEXT, allowNull: true },
     needsPreTest: { type: DataTypes.BOOLEAN, defaultValue: true },
+    needsPostTest: { type: DataTypes.BOOLEAN, defaultValue: true, allowNull: false },
+    minimumPostTestScore: { type: DataTypes.INTEGER, defaultValue: 70, allowNull: false },
     prerequisites: { // Array of prerequisite course IDs or objects representing prerequisite courses
       type: DataTypes.JSON,
       allowNull: true,

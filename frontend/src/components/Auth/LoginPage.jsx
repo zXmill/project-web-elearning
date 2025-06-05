@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import GoogleButton from './GoogleButton';
 import LoginForm from './LoginForm';
-import api from '../../services/api'; // Corrected path: components/Auth -> services is ../../
+// import api from '../../services/api'; // No longer directly calling api.post here
+import { useAuth } from '../../contexts/AuthContext'; // Import useAuth
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login, errorAuth } = useAuth(); // Get login function and errorAuth from context
 
   // Handle Google Login
   const handleGoogleLogin = () => {
@@ -13,33 +15,23 @@ export default function LoginPage() {
     window.location.href = 'http://localhost:3001/api/auth/google'; // Make absolute if not using proxy for this
   };
 
-  // Handle Local Login
+  // Handle Local Login - Refactored to use AuthContext's login
   const handleLocalLogin = async (credentials) => {
-    // The try-catch block for API errors is removed from here.
-    // LoginForm.jsx's handleSubmit will now catch errors from api.post
-    // and display them. This function will only handle the success case.
+    const loggedInUser = await login(credentials); // Call context's login function
 
-    const response = await api.post('/auth/login', credentials);
-
-    // Axios response data is in response.data
-    const data = response.data;
-
-    // Store token and user email in localStorage
-    localStorage.setItem('token', data.token);
-    localStorage.setItem('userEmail', data.data.user.email); // Assuming structure is data.data.user.email
-    localStorage.setItem('userName', data.data.user.name); // Store name as well
-    localStorage.setItem('userRole', data.data.user.role); // Store role
-
-    // Redirect based on role
-    if (data.data.user.role === 'admin') {
-      navigate('/admin');
+    if (loggedInUser) {
+      // login was successful, AuthContext has updated user state and localStorage
+      if (loggedInUser.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     } else {
-      navigate('/');
+      // login failed, errorAuth should be set in AuthContext
+      // Throw an error to be caught by LoginForm.jsx's handleSubmit
+      throw new Error(errorAuth || 'Login gagal. Silakan coba lagi.');
     }
-    // If api.post('/auth/login', credentials) fails, it will throw an error.
-    // This error will be caught by the handleSubmit function in LoginForm.jsx.
   };
-
 
   return (
     <div className="min-h-screen flex bg-teraplus-page-bg"> {/* This will be white */}

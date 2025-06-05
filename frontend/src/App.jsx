@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { useEffect } from 'react';
-import { AuthProvider } from './contexts/AuthContext'; // Corrected Import AuthProvider
+import { AuthProvider } from './contexts/AuthContext';
+import { CourseProgressProvider } from './contexts/CourseProgressContext'; // Import CourseProgressProvider
 import Login from './pages/Login';
 import RegisterPage from './pages/RegisterPage';
 import Home from './pages/Home';
@@ -20,6 +21,7 @@ import PreTestResultPage from './pages/PreTestResultPage'; // Added PreTestResul
 import CourseContentPage from './pages/CourseContentPage';
 import PostTestPage from './pages/PostTestPage'; // Import PostTestPage
 import PostTestResultPage from './pages/PostTestResultPage'; // Import PostTestResultPage
+import CertificatePage from './pages/CertificatePage'; // Import CertificatePage
 import CourseManagement from './components/Admin/CourseManagement'; // Import CourseManagement for admin courses
 import AdminContentPage from './pages/AdminContentPage'; // Import AdminContentPage
 
@@ -33,16 +35,18 @@ export default function App() {
     const token = params.get('token');
     if (token) {
       localStorage.setItem('token', token);
+      window.dispatchEvent(new CustomEvent('auth-token-processed')); // Dispatch custom event
       window.history.replaceState({}, document.title, '/'); // Hapus token dari URL
     }
   }, []);
 
   return (
-    <AuthProvider> {/* Wrap BrowserRouter with AuthProvider */}
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<RegisterPage />} />
+    <AuthProvider>
+      <CourseProgressProvider> {/* Wrap BrowserRouter with CourseProgressProvider */}
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<RegisterPage />} />
           <Route path="/request-password-reset" element={<RequestPasswordResetPage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
           <Route path="/auth-redirect" element={<AuthRedirect />} />
@@ -112,7 +116,7 @@ export default function App() {
           }
         />
         {/* Optional: Route for specific module ID if needed later */}
-        {/* <Route
+        <Route
           path="/course/:courseId/content/:moduleId" 
           element={
             <PrivateRoute>
@@ -121,7 +125,7 @@ export default function App() {
               </UserLayout>
             </PrivateRoute>
           }
-        /> */}
+        />
         {/* Post-Test Route */}
         <Route
           path="/course/:courseId/posttest"
@@ -140,6 +144,17 @@ export default function App() {
             <PrivateRoute>
               <UserLayout>
                 <PostTestResultPage />
+              </UserLayout>
+            </PrivateRoute>
+          }
+        />
+        {/* Certificate Page Route */}
+        <Route
+          path="/course/:courseId/certificate"
+          element={
+            <PrivateRoute>
+              <UserLayout>
+                <CertificatePage />
               </UserLayout>
             </PrivateRoute>
           }
@@ -167,8 +182,9 @@ export default function App() {
               </a>
             </div>
           } />
-        </Routes>
-      </BrowserRouter>
+          </Routes>
+        </BrowserRouter>
+      </CourseProgressProvider>
     </AuthProvider> 
   );
 }
