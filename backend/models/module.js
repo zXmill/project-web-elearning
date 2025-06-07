@@ -22,6 +22,30 @@ module.exports = (sequelize, DataTypes) => {
     pdfPath: { type: DataTypes.STRING, allowNull: true },    // Repurposed: For 'PDF_DOCUMENT' type, stores URL/path to the PDF
     videoLink: { type: DataTypes.STRING, allowNull: true },  // Legacy: For 'video' type (can be handled by PAGE type)
     order: { type: DataTypes.INTEGER, allowNull: false },   // For sequencing modules
+  }, { // Added options object for hooks
+    hooks: {
+      beforeCreate: (module, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Module: BeforeCreate hook, context: ${options.loggingContext}, Module ID: ${module.id || 'New Module'}`);
+        }
+      },
+      beforeUpdate: (module, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Module: BeforeUpdate hook, context: ${options.loggingContext}, Module ID: ${module.id}`);
+        }
+      },
+      beforeDestroy: (module, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Module: BeforeDestroy hook, context: ${options.loggingContext}, Module ID: ${module.id}`);
+        }
+      },
+      beforeBulkCreate: (modules, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Module: BeforeBulkCreate hook, context: ${options.loggingContext}, Number of Modules: ${modules.length}`);
+        }
+      }
+      // beforeBulkUpdate and beforeBulkDestroy are not directly supported with loggingContext in the same way.
+    }
   });
 
   Module.associate = (models) => {

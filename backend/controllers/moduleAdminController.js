@@ -128,7 +128,7 @@ exports.createModule = async (req, res) => {
     moduleData.order = moduleOrder;
 
     // Create module
-    const module = await Module.create(moduleData);
+    const module = await Module.create(moduleData, { loggingContext: 'adminChange' });
 
     res.status(201).json({
       status: 'success',
@@ -214,7 +214,7 @@ exports.updateModule = async (req, res) => {
       module.videoLink = null;
     }
 
-    await module.save();
+    await module.save({ loggingContext: 'adminChange' });
 
     res.status(200).json({
       status: 'success',
@@ -254,7 +254,7 @@ exports.deleteModule = async (req, res) => {
     const { order: deletedOrder, courseId } = module;
 
     // Delete the module
-    await module.destroy();
+    await module.destroy({ loggingContext: 'adminChange' });
 
     // Reorder remaining modules
     await Module.update(
@@ -295,7 +295,7 @@ exports.reorderModules = async (req, res) => {
       moduleOrders.map(({ id, order }) =>
         Module.update(
           { order },
-          { where: { id, courseId } }
+          { where: { id, courseId }, loggingContext: 'adminChange' }
         )
       )
     );

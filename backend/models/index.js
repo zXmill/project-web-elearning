@@ -9,6 +9,7 @@ const Module = require('./module')(sequelize, DataTypes);
 const Question = require('./question')(sequelize, DataTypes);
 const Enrollment = require('./enrollment')(sequelize, DataTypes); // Added
 const UserProgress = require('./userProgress')(sequelize, DataTypes); // Added
+const Setting = require('./setting')(sequelize, DataTypes); // Added Setting model
 
 // Create the db object to pass to associations and for export
 const db = {
@@ -19,7 +20,8 @@ const db = {
   Module,
   Question,
   Enrollment,
-  UserProgress
+  UserProgress,
+  Setting // Added Setting model to db object
 };
 
 // Call associate methods for each model, if they exist

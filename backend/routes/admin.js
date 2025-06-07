@@ -43,6 +43,31 @@ const modulePdfStorage = multer.diskStorage({
 });
 const uploadModulePdf = multer({ storage: modulePdfStorage });
 
+// Configure Multer for Excel file uploads (for bulk user creation)
+const excelFileStorage = multer.diskStorage({
+  // For simplicity, store in a temporary location or handle in memory if preferred
+  // destination: (req, file, cb) => {
+  //   const uploadPath = path.join(__dirname, '..', 'temp', 'uploads'); // Example: temp folder
+  //   fs.mkdirSync(uploadPath, { recursive: true });
+  //   cb(null, uploadPath);
+  // },
+  // filename: (req, file, cb) => {
+  //   cb(null, `${Date.now()}-${file.originalname}`);
+  // }
+  // Using memory storage for now, as we'll process it immediately
+});
+const uploadExcelFile = multer({ 
+  storage: multer.memoryStorage(), // Use memoryStorage to handle file buffer directly
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'text/csv'];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only Excel (.xlsx, .xls) and CSV (.csv) files are allowed.'), false);
+    }
+  }
+});
+
 
 // All routes in this file will first be protected by authMiddleware, then by isAdmin
 
@@ -52,6 +77,29 @@ router.get(
   authMiddleware, // Ensure user is logged in
   isAdmin,        // Ensure user is an admin
   adminController.getDashboardSummary
+);
+
+// --- Recent Activities Route ---
+router.get(
+  '/activities',
+  authMiddleware,
+  isAdmin,
+  adminController.getRecentActivities
+);
+
+// --- Site Settings Routes ---
+router.get(
+  '/settings',
+  authMiddleware,
+  isAdmin,
+  adminController.getSettings
+);
+
+router.put(
+  '/settings',
+  authMiddleware,
+  isAdmin,
+  adminController.updateSettings
 );
 
 // Example Admin Route: Get All Users
@@ -67,7 +115,16 @@ router.post(
   '/users',
   authMiddleware,
   isAdmin,
-  adminController.createUser // We'll create this controller function
+  adminController.createUser
+);
+
+// Route for bulk user creation
+router.post(
+  '/users/bulk-create', // Changed route to match frontend
+  authMiddleware,
+  isAdmin,
+  uploadExcelFile.single('userBulkFile'), // 'userBulkFile' will be the field name in FormData
+  adminController.bulkCreateUsers 
 );
 
 // --- COURSE CRUD (ADMIN) ---

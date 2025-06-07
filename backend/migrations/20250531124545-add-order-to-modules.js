@@ -3,11 +3,9 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-    await queryInterface.addColumn('Modules', 'order', {
-      type: Sequelize.INTEGER,
-      allowNull: false,
-      defaultValue: 0 // Added default value for existing rows
-    });
+    // Column 'order' is already added by 20240503000000-create-modules.js
+    // This migration's up action is now redundant.
+    Promise.resolve();
   },
 
   async down (queryInterface, Sequelize) {

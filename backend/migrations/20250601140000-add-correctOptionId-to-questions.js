@@ -2,17 +2,10 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    try {
-      await queryInterface.addColumn('Questions', 'correctOptionId', {
-        type: Sequelize.STRING,
-        allowNull: true,
-        after: 'options'
-      });
-      console.log('✅ Successfully added correctOptionId column to Questions table');
-    } catch (error) {
-      console.error('❌ Error adding correctOptionId column:', error);
-      throw error;
-    }
+    // Column 'correctOptionId' is already added by 20240504000000-create-questions.js
+    // This migration's up action is now redundant.
+    console.log('ℹ️ Column correctOptionId already exists or handled by create-questions migration. Skipping addColumn.');
+    return Promise.resolve();
   },
 
   down: async (queryInterface, Sequelize) => {

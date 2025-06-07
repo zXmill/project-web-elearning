@@ -50,10 +50,40 @@ module.exports = (sequelize, DataTypes) => {
     passwordResetExpires: {
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    lastLoginAt: { // Added lastLoginAt
+      type: DataTypes.DATE,
+      allowNull: true,
     }
   }, {
     sequelize,
     modelName: 'User',
+    hooks: {
+      beforeCreate: (user, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] User: BeforeCreate hook, context: ${options.loggingContext}, User ID: ${user.id || 'New User'}`);
+        }
+      },
+      beforeUpdate: (user, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] User: BeforeUpdate hook, context: ${options.loggingContext}, User ID: ${user.id}`);
+        }
+      },
+      beforeDestroy: (user, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] User: BeforeDestroy hook, context: ${options.loggingContext}, User ID: ${user.id}`);
+        }
+      },
+      beforeBulkCreate: (users, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] User: BeforeBulkCreate hook, context: ${options.loggingContext}, Number of Users: ${users.length}`);
+        }
+      },
+      // Note: Sequelize does not have a direct beforeBulkUpdate or beforeBulkDestroy hook
+      // that works like individual hooks for loggingContext.
+      // For bulk updates/deletes, logging should primarily be handled at the controller level
+      // or by iterating and performing individual operations if detailed per-record logging is needed.
+    }
   });
 
   User.associate = (models) => {

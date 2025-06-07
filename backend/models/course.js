@@ -24,6 +24,30 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 'FREE',
     },
+  }, { // Added options object for hooks
+    hooks: {
+      beforeCreate: (course, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Course: BeforeCreate hook, context: ${options.loggingContext}, Course ID: ${course.id || 'New Course'}`);
+        }
+      },
+      beforeUpdate: (course, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Course: BeforeUpdate hook, context: ${options.loggingContext}, Course ID: ${course.id}`);
+        }
+      },
+      beforeDestroy: (course, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Course: BeforeDestroy hook, context: ${options.loggingContext}, Course ID: ${course.id}`);
+        }
+      },
+      beforeBulkCreate: (courses, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Course: BeforeBulkCreate hook, context: ${options.loggingContext}, Number of Courses: ${courses.length}`);
+        }
+      }
+      // beforeBulkUpdate and beforeBulkDestroy are not directly supported with loggingContext in the same way.
+    }
   });
 
   Course.associate = (models) => {

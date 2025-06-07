@@ -3,16 +3,10 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.addColumn('Courses', 'needsPostTest', {
-      type: Sequelize.BOOLEAN,
-      allowNull: false,
-      defaultValue: true,
-    });
-    await queryInterface.addColumn('Courses', 'minimumPostTestScore', {
-      type: Sequelize.INTEGER,
-      allowNull: false,
-      defaultValue: 70, // Default minimum score, e.g., 70%
-    });
+    // Columns 'needsPostTest' and 'minimumPostTestScore' are already added by 20240502000000-create-courses.js
+    // This migration's up action is now redundant.
+    console.log('ℹ️ Columns needsPostTest and minimumPostTestScore already exist or handled by create-courses migration. Skipping addColumn.');
+    return Promise.resolve();
   },
 
   async down(queryInterface, Sequelize) {

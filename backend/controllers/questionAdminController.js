@@ -125,7 +125,7 @@ exports.createQuestion = async (req, res) => {
       options: type === 'mcq' ? options : null,
       correctOptionId: type === 'mcq' ? correctOptionId : null,
       explanation
-    });
+    }, { loggingContext: 'adminChange' });
 
     res.status(201).json({
       status: 'success',
@@ -203,7 +203,8 @@ exports.updateQuestion = async (req, res) => {
     if (correctOptionId !== undefined) question.correctOptionId = correctOptionId;
     if (explanation !== undefined) question.explanation = explanation;
 
-    await question.save();
+
+    await question.save({ loggingContext: 'adminChange' });
 
     res.status(200).json({
       status: 'success',
@@ -239,7 +240,7 @@ exports.deleteQuestion = async (req, res) => {
       });
     }
 
-    await question.destroy();
+    await question.destroy({ loggingContext: 'adminChange' });
     res.status(204).send();
   } catch (error) {
     console.error(`Error deleting question ${req.params.id}:`, error);
@@ -282,7 +283,8 @@ exports.bulkCreateQuestions = async (req, res) => {
 
     // Create all questions
     const createdQuestions = await Question.bulkCreate(
-      questions.map(q => ({ ...q, moduleId }))
+      questions.map(q => ({ ...q, moduleId })),
+      { loggingContext: 'adminChange' }
     );
 
     res.status(201).json({

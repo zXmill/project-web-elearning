@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "db:migration:generate:add-lastLoginAt": "sequelize-cli migration:generate --name add-lastLoginAt-to-users",
+    "db:migrate": "sequelize-cli db:migrate"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -21,7 +23,8 @@
     "passport-google-oauth20": "^2.0.0",
     "pdfkit": "^0.13.0",
     "sequelize": "^6.37.7",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",

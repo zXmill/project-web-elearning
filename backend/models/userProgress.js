@@ -48,6 +48,30 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+  }, { // Added options object for hooks
+    hooks: {
+      beforeCreate: (userProgress, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] UserProgress: BeforeCreate hook, context: ${options.loggingContext}, UserProgress ID: ${userProgress.id || 'New UserProgress'}, UserID: ${userProgress.userId}, CourseID: ${userProgress.courseId}, ModuleID: ${userProgress.moduleId}`);
+        }
+      },
+      beforeUpdate: (userProgress, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] UserProgress: BeforeUpdate hook, context: ${options.loggingContext}, UserProgress ID: ${userProgress.id}`);
+        }
+      },
+      beforeDestroy: (userProgress, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] UserProgress: BeforeDestroy hook, context: ${options.loggingContext}, UserProgress ID: ${userProgress.id}`);
+        }
+      },
+      beforeBulkCreate: (userProgresses, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] UserProgress: BeforeBulkCreate hook, context: ${options.loggingContext}, Number of UserProgresses: ${userProgresses.length}`);
+        }
+      }
+      // beforeBulkUpdate and beforeBulkDestroy are not directly supported with loggingContext in the same way.
+    }
   });
 
   UserProgress.associate = (models) => {

@@ -2,17 +2,10 @@
 
 module.exports = {
   up: async (queryInterface, Sequelize) => {
-    try {
-      await queryInterface.addColumn('Courses', 'prerequisites', {
-        type: Sequelize.JSON,
-        allowNull: true,
-        after: 'needsPreTest' // Add after existing column
-      });
-      console.log('✅ Successfully added prerequisites column to Courses table');
-    } catch (error) {
-      console.error('❌ Error adding prerequisites column:', error);
-      throw error;
-    }
+    // Column 'prerequisites' is already added by 20240502000000-create-courses.js
+    // This migration's up action is now redundant.
+    console.log('ℹ️ Column prerequisites already exists or handled by create-courses migration. Skipping addColumn.');
+    return Promise.resolve();
   },
 
   down: async (queryInterface, Sequelize) => {

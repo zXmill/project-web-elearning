@@ -267,7 +267,7 @@ exports.enrollInCourse = async (req, res) => {
       userId: userId,
       courseId: courseId,
       // enrolledAt is handled by defaultValue: Sequelize.NOW
-    });
+    }, { loggingContext: 'userEnrollment' });
 
     res.status(201).json({ // 201 Created
       status: 'success',
@@ -433,15 +433,18 @@ exports.markModuleComplete = async (req, res) => {
         moduleId: moduleId,
         completedAt: new Date().toISOString(),
         lastAccessedAt: new Date().toISOString(),
-      });
+      }, { loggingContext: 'userProfileChange' }); // Context: user making progress
     } else {
       // Update completion timestamp if not already set
       if (!userProgress.completedAt) {
         userProgress.completedAt = new Date().toISOString();
       }
       userProgress.lastAccessedAt = new Date().toISOString();
-      await userProgress.save();
+      await userProgress.save({ loggingContext: 'userProfileChange' }); // Context: user making progress
     }
+
+    // Check for course completion after marking module complete
+    await checkAndLogCourseCompletion(userId, courseId);
 
     res.status(200).json({
       status: 'success',
@@ -509,7 +512,7 @@ exports.recordTestScore = async (req, res) => {
         completedAt: new Date().toISOString(),
         score: score,
         lastAccessedAt: new Date().toISOString(),
-      });
+      }, { loggingContext: 'userProfileChange' }); // Context: user making progress (test score)
     } else {
       // Update score and completion timestamp
       userProgress.score = score;
@@ -517,9 +520,12 @@ exports.recordTestScore = async (req, res) => {
         userProgress.completedAt = new Date().toISOString();
       }
       userProgress.lastAccessedAt = new Date().toISOString();
-      await userProgress.save();
+      await userProgress.save({ loggingContext: 'userProfileChange' }); // Context: user making progress (test score)
     }
 
+    // Check for course completion after recording test score
+    await checkAndLogCourseCompletion(userId, courseId);
+    
     res.status(200).json({
       status: 'success',
       message: 'Skor tes berhasil dicatat.',
@@ -630,6 +636,21 @@ exports.getUserProgressForCourse = async (req, res) => {
 
 const PDFDocument = require('pdfkit');
 const fs = require('fs'); // For potential font loading, though not used in this basic example
+
+// Helper function to check and log course completion
+async function checkAndLogCourseCompletion(userId, courseId) {
+  try {
+    const eligibilityData = await getCertificateEligibilityData(userId, courseId.toString()); // Ensure identifier is string
+    if (eligibilityData.eligible) {
+      // Check if this specific log has already been made to prevent duplicates if multiple actions trigger eligibility
+      // This might require a more sophisticated check, e.g., a flag in UserProgress or a separate log table.
+      // For now, we'll log it. Consider adding a check if duplicate logs become an issue.
+      console.log(`[COURSE_FINISH] User ${userId} completed course ${courseId}.`);
+    }
+  } catch (error) {
+    console.error(`Error checking course completion for user ${userId}, course ${courseId}:`, error);
+  }
+}
 
 // Helper function to get eligibility data (extracted and adapted from checkCertificateEligibility)
 async function getCertificateEligibilityData(userId, identifier) { // Changed courseId to identifier

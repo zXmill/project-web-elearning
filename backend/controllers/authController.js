@@ -18,9 +18,23 @@ const signToken = (id, role, email) => {
 // Google OAuth
 exports.googleLogin = async (req, res) => {
   try {
+    if (req.user) {
+      try {
+        // Find the user in DB to update lastLoginAt, as req.user might be from session/passport state
+        const userToUpdate = await User.findByPk(req.user.id);
+        if (userToUpdate) {
+          userToUpdate.lastLoginAt = new Date();
+          await userToUpdate.save({ loggingContext: 'userGoogleLogin' });
+        }
+      } catch (dbError) {
+        console.error("Error updating lastLoginAt for Google user:", dbError);
+        // Non-critical error, proceed with login
+      }
+    }
     const token = signToken(req.user.id, req.user.role, req.user.email);
     res.redirect(`${process.env.FRONTEND_URL}/auth-redirect?token=${token}`);
   } catch (error) {
+    console.error('Error during Google login process:', error); // Added more specific logging
     res.status(500).json({
       status: 'error',
       message: 'Terjadi kesalahan saat login dengan Google'
@@ -198,6 +212,10 @@ exports.localLogin = async (req, res) => {
       });
     }
 
+    // Update lastLoginAt
+    user.lastLoginAt = new Date();
+    await user.save({ loggingContext: 'userLogin' });
+
     // 3. Generate token
     const token = signToken(user.id, user.role, user.email);
 
@@ -255,7 +273,7 @@ exports.registerUser = async (req, res) => {
       affiliasi,          // Added affiliasi
       noHp,               // Added noHp
       role: 'user', // Default role
-    });
+    }, { loggingContext: 'userRegister' });
 
     // 5. Send response (excluding password)
     // Optionally, generate and send a token here for auto-login
@@ -347,7 +365,7 @@ exports.updateUserProfile = async (req, res) => {
     user.namaLengkap = namaLengkap.trim();
     user.affiliasi = affiliasi.trim();
     user.noHp = noHp.trim();
-    await user.save();
+    await user.save({ loggingContext: 'userProfileChange' });
 
     // Return updated user, excluding sensitive fields
     const updatedUser = await User.findByPk(user.id, {
@@ -397,7 +415,7 @@ exports.uploadProfilePicture = async (req, res) => {
     // and backend/uploads is served as /uploads, then path is /uploads/profile-pictures/filename
     const profilePicturePath = `/uploads/profile-pictures/${req.file.filename}`;
     user.profilePicture = profilePicturePath;
-    await user.save();
+    await user.save({ loggingContext: 'userProfileChange' });
 
     // Return updated user, excluding sensitive fields
     const updatedUser = await User.findByPk(user.id, {

@@ -3,14 +3,9 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-    await queryInterface.addColumn('Users', 'passwordResetToken', {
-      type: Sequelize.STRING,
-      allowNull: true,
-    });
-    await queryInterface.addColumn('Users', 'passwordResetExpires', {
-      type: Sequelize.DATE,
-      allowNull: true,
-    });
+    // Columns 'passwordResetToken' and 'passwordResetExpires' are already added by 20240501000000-create-users.js
+    // This migration's up action is now redundant.
+    Promise.resolve();
   },
 
   async down (queryInterface, Sequelize) {

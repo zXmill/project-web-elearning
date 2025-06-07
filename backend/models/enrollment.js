@@ -37,6 +37,30 @@ module.exports = (sequelize, DataTypes) => {
         fields: ['userId', 'courseId'],
       },
     ],
+    hooks: {
+      beforeCreate: (enrollment, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Enrollment: BeforeCreate hook, context: ${options.loggingContext}, Enrollment ID: ${enrollment.id || 'New Enrollment'}, UserID: ${enrollment.userId}, CourseID: ${enrollment.courseId}`);
+        }
+      },
+      beforeUpdate: (enrollment, options) => {
+        // Enrollments are typically not updated, but hook is included for completeness
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Enrollment: BeforeUpdate hook, context: ${options.loggingContext}, Enrollment ID: ${enrollment.id}`);
+        }
+      },
+      beforeDestroy: (enrollment, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Enrollment: BeforeDestroy hook, context: ${options.loggingContext}, Enrollment ID: ${enrollment.id}`);
+        }
+      },
+      beforeBulkCreate: (enrollments, options) => {
+        if (options.loggingContext) {
+          console.log(`[HOOKS] Enrollment: BeforeBulkCreate hook, context: ${options.loggingContext}, Number of Enrollments: ${enrollments.length}`);
+        }
+      }
+      // beforeBulkUpdate and beforeBulkDestroy are not directly supported with loggingContext in the same way.
+    }
   });
 
   Enrollment.associate = (models) => {
