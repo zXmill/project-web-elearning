@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom'; // Added Link for potential breadcrumbs or related courses
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useCourseProgress } from '../contexts/CourseProgressContext';
 
 const CourseDetailPage = () => {
-  const { courseId } = useParams();
+  const { identifier } = useParams(); // Changed courseId to identifier
   const navigate = useNavigate();
   const { user } = useAuth();
   const {
@@ -35,34 +35,38 @@ const CourseDetailPage = () => {
 
 
   useEffect(() => {
-    // Reset progress when component unmounts or courseId changes before fetching new
+    // Reset progress when component unmounts or identifier changes before fetching new
     return () => {
-      if (courseId) { // Only reset if there was a courseId context
-        // resetProgressForCourse(); // Decided to manage this via fetchCourseProgressAndModules itself
+      if (identifier) { // Only reset if there was an identifier context
+        // resetProgressForCourse(); // Managed by fetchCourseProgressAndModules or if user logs out
       }
     };
-  }, [courseId]);
+  }, [identifier]);
 
 
   useEffect(() => {
     const fetchDetailsAndProgress = async () => {
-      if (courseId && user) {
-        setLoading(true); // For course details
+      if (identifier) { // Use identifier from useParams
+        setLoading(true); 
         setError('');
         try {
-          // Fetch course details
-          const response = await api.get(`/courses/${courseId}`);
+          // Fetch course details using identifier (slug or ID)
+          const response = await api.get(`/courses/${identifier}`);
           if (response.data && response.data.status === 'success' && response.data.data && response.data.data.course) {
             const fetchedCourse = response.data.data.course;
             setCourse({
               ...fetchedCourse,
               deskripsiLengkap: fetchedCourse.deskripsi || "Deskripsi lengkap tidak tersedia.",
-              syaratKetentuan: fetchedCourse.syarat_ketentuan || "Syarat & ketentuan tidak tersedia.",
+              syaratKetentuan: fetchedCourse.syaratDanKetentuan || fetchedCourse.syarat_ketentuan || "Syarat & ketentuan tidak tersedia.", // Check both possible field names
               shortDescriptionSidebar: fetchedCourse.deskripsi_singkat_sidebar ||
                                        (typeof fetchedCourse.deskripsi === 'string' ? fetchedCourse.deskripsi.substring(0, 100) + "..." : "Info singkat kursus.")
             });
-            // After setting course, fetch progress (which also fetches modules)
-            await fetchCourseProgressAndModules(courseId);
+            // After setting course, if user is logged in, fetch progress using the actual course ID from fetchedCourse
+            if (user && fetchedCourse.id) {
+              await fetchCourseProgressAndModules(fetchedCourse.id); 
+            } else if (!user) {
+              resetProgressForCourse(); // No user, so reset any lingering progress state
+            }
           } else {
             setError(response.data?.message || 'Kursus tidak ditemukan atau format respons tidak sesuai.');
             setCourse(null);
@@ -74,35 +78,28 @@ const CourseDetailPage = () => {
         } finally {
           setLoading(false);
         }
-      } else if (courseId && !user) {
-        // Fetch public course details if user not logged in
-        setLoading(true);
-        setError('');
-        try {
-            const response = await api.get(`/courses/${courseId}`);
-            if (response.data && response.data.status === 'success' && response.data.data && response.data.data.course) {
-                const fetchedCourse = response.data.data.course;
-                setCourse({ /* ... set course data ... */ });
-            } else { /* ... handle error ... */ }
-        } catch (err) { /* ... handle error ... */ }
-        finally { setLoading(false); }
-        resetProgressForCourse(); // No user, so reset any lingering progress state
+      } else {
+        // Handle case where identifier might be undefined (though typically handled by router)
+        setError("Identifier kursus tidak ditemukan di URL.");
+        setLoading(false);
       }
     };
 
     fetchDetailsAndProgress();
-  }, [courseId, user, fetchCourseProgressAndModules, resetProgressForCourse]);
+  }, [identifier, user, fetchCourseProgressAndModules, resetProgressForCourse]); // Depend on identifier
 
 
-  // Certificate Eligibility Check (using contextModules if available)
+  // Certificate Eligibility Check
   useEffect(() => {
     const checkEligibility = async () => {
-      if (courseId && user) {
+      // Ensure course object and its id are available, and user is logged in
+      if (course && course.id && user) { 
         setEligibilityLoading(true);
         setEligibilityError('');
         setEligibilityReasons([]);
         try {
-          const response = await api.get(`/courses/${courseId}/certificate/eligibility`);
+          // Use numeric course.id for this API call
+          const response = await api.get(`/courses/${course.id}/certificate/eligibility`);
           if (response.data && response.data.status === 'success') {
             setCertificateEligible(response.data.eligible);
             if (!response.data.eligible && response.data.reasons) {
@@ -125,15 +122,17 @@ const CourseDetailPage = () => {
         setEligibilityChecked(false);
       }
     };
-    if (courseId && user) {
+    // Trigger checkEligibility when course data (specifically course.id) is available and user is logged in
+    if (course && course.id && user) {
       checkEligibility();
     }
-  }, [courseId, user, contextModules, completedModules]); // Use completedModules in dependency array
+  }, [course, user, contextModules, completedModules]); // Depend on course object (for course.id)
 
   const handleDownloadCertificate = async () => {
-    // ... (handleDownloadCertificate implementation remains the same)
+    if (!course || !course.id) return; // Ensure course and course.id are available
     try {
-      const response = await api.get(`/courses/${courseId}/certificate/download`, {
+      // Use numeric course.id for this API call
+      const response = await api.get(`/courses/${course.id}/certificate/download`, {
         responseType: 'blob',
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -174,59 +173,31 @@ const CourseDetailPage = () => {
   } else if (progressLoading || loading) { // loading is for course details
     buttonText = 'Memuat...';
   } else if (course) { // Ensure course data and progress data are loaded
-    if (firstIntroModule && !isFirstIntroCompleted) {
-      buttonText = 'Baca Pendahuluan';
-      buttonAction = async () => {
-        setIsEnrolling(true);
-        try {
-          await api.post(`/courses/${courseId}/enroll`);
-          navigate(`/course/${courseId}/content/${firstIntroModule.id}`);
-        } catch (err) {
-          if (err.response && err.response.status === 409) { // Already enrolled
-            navigate(`/course/${courseId}/content/${firstIntroModule.id}`);
-          } else {
-            alert('Gagal memulai kursus. Silakan coba lagi.');
-          }
-        } finally {
-          setIsEnrolling(false);
-        }
-      };
-    } else if (preTestModule && !contextIsPreTestCompleted) {
-      buttonText = 'Mulai Pre-Test';
-      buttonAction = async () => {
-        setIsEnrolling(true);
-        try {
-          await api.post(`/courses/${courseId}/enroll`);
-          navigate(`/course/${courseId}/pretest`); // Navigate to dedicated pre-test route
-        } catch (err) {
-          if (err.response && err.response.status === 409) { // Already enrolled
-             navigate(`/course/${courseId}/pretest`);
-          } else {
-            alert('Gagal memulai pre-test. Silakan coba lagi.');
-          }
-        } finally {
-          setIsEnrolling(false);
-        }
-      };
-    } else {
-      buttonText = 'Lanjutkan Kursus';
-      buttonAction = async () => {
-        setIsEnrolling(true);
-        try {
-          await api.post(`/courses/${courseId}/enroll`);
-          // Navigate to main content page, it will handle resuming
-          navigate(`/course/${courseId}/content`); 
-        } catch (err) {
-           if (err.response && err.response.status === 409) { // Already enrolled
-             navigate(`/course/${courseId}/content`);
-          } else {
-            alert('Gagal melanjutkan kursus. Silakan coba lagi.');
-          }
-        } finally {
-          setIsEnrolling(false);
-        }
-      };
-    }
+    // All paths for an enrolled user now lead to the module list page
+    buttonText = 'Mulai Course';
+    buttonAction = () => { // Removed async as api.post is removed
+      setIsEnrolling(true);
+      // Ensure course and course.id or course.slug are available for navigation
+      if (!course || (!course.id && !course.slug)) { 
+        setIsEnrolling(false);
+        alert('Detail kursus belum dimuat sepenuhnya atau tidak valid.');
+        return;
+      }
+      try {
+        // Enrollment is implicitly handled by fetchCourseProgressAndModules on page load.
+        // Direct navigation.
+        const navigateTo = course.slug ? `/course/${course.slug}/moduleslist` : `/course/${course.id}/moduleslist`;
+        navigate(navigateTo);
+      } catch (err) {
+        // Catch potential errors from navigate() or if other logic is added here later
+        console.error("Error navigating to modules list:", err);
+        // It's unlikely navigate() itself will throw an error that needs an alert here,
+        // but keeping for robustness if other pre-navigation checks were added.
+        alert('Gagal memulai kursus. Silakan coba lagi.');
+      } finally {
+        setIsEnrolling(false);
+      }
+    };
   } else if (error || progressError) {
       buttonText = "Gagal Memuat Kursus";
       buttonAction = () => window.location.reload(); // Or some other error action

@@ -75,6 +75,44 @@ const RegisterForm = ({ onSubmit, formData, handleChange, error, success }) => {
             className="mt-1 block w-full px-3 py-2 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-teraplus-brand-blue focus:border-teraplus-brand-blue sm:text-sm text-teraplus-text-default border border-gray-300"
           />
         </div>
+        {/* Added Affiliasi Field */}
+        <div className="flex flex-col gap-1.5 items-start w-full">
+          <label
+            htmlFor="affiliasi"
+            className="w-full text-sm md:text-base font-medium leading-7 text-teraplus-text-default"
+          >
+            Affiliasi (Nama Instansi/Perusahaan/Pribadi)
+          </label>
+          <input
+            id="affiliasi"
+            name="affiliasi"
+            type="text"
+            required
+            value={formData.affiliasi}
+            onChange={handleChange}
+            placeholder="Masukkan affiliasi Anda"
+            className="mt-1 block w-full px-3 py-2 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-teraplus-brand-blue focus:border-teraplus-brand-blue sm:text-sm text-teraplus-text-default border border-gray-300"
+          />
+        </div>
+        {/* Added No HP Field */}
+        <div className="flex flex-col gap-1.5 items-start w-full">
+          <label
+            htmlFor="noHp"
+            className="w-full text-sm md:text-base font-medium leading-7 text-teraplus-text-default"
+          >
+            No. HP (WhatsApp Aktif)
+          </label>
+          <input
+            id="noHp"
+            name="noHp"
+            type="tel"
+            required
+            value={formData.noHp}
+            onChange={handleChange}
+            placeholder="Contoh: 081234567890"
+            className="mt-1 block w-full px-3 py-2 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-teraplus-brand-blue focus:border-teraplus-brand-blue sm:text-sm text-teraplus-text-default border border-gray-300"
+          />
+        </div>
         <div className="flex flex-col gap-1.5 items-start w-full">
           <label
             htmlFor="password"

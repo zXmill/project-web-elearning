@@ -4,7 +4,7 @@ import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext'; // To get user info if needed for display
 
 const CertificatePage = () => {
-  const { courseId } = useParams();
+  const { identifier } = useParams(); // Changed courseId to identifier
   const { user } = useAuth(); // Get authenticated user, though backend handles eligibility logic
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -12,7 +12,7 @@ const CertificatePage = () => {
 
   useEffect(() => {
     const fetchEligibilityStatus = async () => {
-      if (!courseId) {
+      if (!identifier) { // Changed courseId to identifier
         setError('Course ID is missing.');
         setLoading(false);
         return;
@@ -20,12 +20,24 @@ const CertificatePage = () => {
       try {
         setLoading(true);
         setError('');
-        // This is the PROPOSED backend endpoint.
-        // The backend needs to implement GET /api/courses/:courseId/certificate-eligibility
-        const response = await api.get(`/courses/${courseId}/certificate-eligibility`);
+        const response = await api.get(`/courses/${identifier}/certificate/eligibility`); // Changed courseId to identifier
 
         if (response.data?.status === 'success') {
-          setEligibilityData(response.data.data);
+          // Backend returns different structure based on eligibility
+          if (response.data.eligible) {
+            setEligibilityData({
+              isEligible: true,
+              courseTitle: response.data.data?.courseName,
+              certificateUrl: response.data.data?.certificateUrl,
+              fileName: response.data.data?.fileName
+            });
+          } else {
+            setEligibilityData({
+              isEligible: false,
+              courseTitle: response.data.data?.courseName || `Course ${identifier}`, // Changed courseId to identifier
+              reason: response.data.reasons?.join(', ') || response.data.message
+            });
+          }
         } else {
           setError(response.data?.message || 'Failed to retrieve certificate eligibility status.');
         }
@@ -38,7 +50,7 @@ const CertificatePage = () => {
     };
 
     fetchEligibilityStatus();
-  }, [courseId]);
+  }, [identifier]); // Changed courseId to identifier
 
   if (loading) {
     return (
@@ -79,8 +91,17 @@ const CertificatePage = () => {
   return (
     <div className="min-h-screen bg-gray-100 px-4 py-8 flex flex-col items-center">
       <div className="max-w-2xl w-full bg-white shadow-xl rounded-lg p-8">
+        <div className="mb-6">
+          <Link 
+            to={`/course/${identifier}`} // Changed courseId to identifier
+            className="inline-flex items-center text-teraplus-accent hover:text-teraplus-hover focus:outline-none focus:ring-2 focus:ring-teraplus-accent-light rounded-md px-3 py-1 transition-colors duration-150"
+          >
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+            Kembali ke Detail Kursus
+          </Link>
+        </div>
         <h1 className="text-3xl font-bold text-center text-teraplus-primary mb-6">
-          Certificate Status: {eligibilityData.courseTitle || `Course ID ${courseId}`}
+          Certificate Status: {eligibilityData.courseTitle || `Course ID ${identifier}`} {/* Changed courseId to identifier */}
         </h1>
 
         {eligibilityData.isEligible ? (
@@ -94,18 +115,54 @@ const CertificatePage = () => {
             <p className="text-gray-600 mb-6">
               You have successfully met the requirements to receive the certificate for the course: <strong>{eligibilityData.courseTitle}</strong>.
             </p>
-            <a
-              href={eligibilityData.certificateUrl.startsWith('http') ? eligibilityData.certificateUrl : `${api.defaults.baseURL}${eligibilityData.certificateUrl.startsWith('/') ? '' : '/'}${eligibilityData.certificateUrl}`}
-              download={eligibilityData.fileName || `certificate-${courseId}.pdf`}
-              target="_blank" // Good practice to open in new tab if it's a direct viewable link
-              rel="noopener noreferrer"
+            <button
+              onClick={async () => {
+                try {
+                  setLoading(true); // Optional: add a new loading state for download
+                  setError('');
+                  
+                  const fullUrl = eligibilityData.certificateUrl.startsWith('http') 
+                    ? eligibilityData.certificateUrl 
+                    : `${api.defaults.baseURL}${eligibilityData.certificateUrl.startsWith('/') ? '' : '/'}${eligibilityData.certificateUrl}`;
+
+                  const response = await api.get(fullUrl, {
+                    responseType: 'blob', // Important for file download
+                  });
+
+                  // Create a link element, hide it, click it, and remove it
+                  const url = window.URL.createObjectURL(new Blob([response.data]));
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.setAttribute('download', eligibilityData.fileName || `certificate-${identifier}.pdf`); // Changed courseId to identifier
+                  document.body.appendChild(link);
+                  link.click();
+                  link.parentNode.removeChild(link);
+                  window.URL.revokeObjectURL(url);
+
+                } catch (err) {
+                  setError(err.response?.data?.message || err.message || 'Failed to download certificate.');
+                  console.error("Error downloading certificate:", err);
+                  // If the blob itself is an error (e.g., JSON error response)
+                  if (err.response?.data instanceof Blob && err.response?.data.type === 'application/json') {
+                    const errorText = await err.response.data.text();
+                    try {
+                      const errorJson = JSON.parse(errorText);
+                      setError(errorJson.message || 'Failed to download certificate. Server returned an error.');
+                    } catch (parseError) {
+                      setError('Failed to download certificate and parse error response.');
+                    }
+                  }
+                } finally {
+                  setLoading(false); // Optional: reset download loading state
+                }
+              }}
               className="w-full md:w-auto inline-flex items-center justify-center px-8 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
               Download Certificate
-            </a>
+            </button>
           </div>
         ) : (
           <div className="text-center">
@@ -126,7 +183,7 @@ const CertificatePage = () => {
               <p className="text-gray-600 mb-4">Required Score: {eligibilityData.requiredScore}%</p>
             )}
             <Link
-              to={`/courses/${courseId}`} // Link back to the course detail page
+              to={`/course/${identifier}`} // Link back to the course detail page, Changed courseId to identifier
               className="mt-4 inline-block px-6 py-2 bg-teraplus-primary text-white rounded-md hover:bg-teraplus-accent transition-colors"
             >
               Go to Course

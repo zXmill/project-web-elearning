@@ -9,6 +9,8 @@ const RegisterPage = () => {
     email: '',
     password: '',
     confirmPassword: '',
+    affiliasi: '', // Added affiliasi
+    noHp: '',      // Added noHp
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -34,6 +36,8 @@ const RegisterPage = () => {
         namaLengkap: formData.namaLengkap,
         email: formData.email,
         password: formData.password,
+        affiliasi: formData.affiliasi, // Added affiliasi
+        noHp: formData.noHp,          // Added noHp
       });
 
       // Axios response data is directly in response.data

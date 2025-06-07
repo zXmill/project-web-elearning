@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Quill PDF button styling */
+.ql-toolbar .ql-formats button.ql-pdf::before {
+  content: "PDF"; /* Display "PDF" as the button text */
+  font-size: 12px; /* Adjust as needed */
+  font-weight: bold; /* Adjust as needed */
+  padding: 0 2px; /* Adjust as needed */
+}
+/* Optional: Adjust padding/margin if needed for alignment */
+.ql-toolbar .ql-formats button.ql-pdf {
+    /* You can add more specific styling here if needed, e.g., width */
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -15,4 +27,21 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Styles for Quill Editor Video Iframes */
+.ql-editor .ql-video {
+  width: 100%; /* Or a specific max-width like 720px */
+  max-width: 720px; /* Example max width */
+  height: auto;
+  aspect-ratio: 16 / 9; /* Common video aspect ratio */
+  margin: 1em auto; /* Center if max-width is less than container, add some vertical margin */
+  display: block; /* Ensure it behaves as a block */
+}
+
+.ql-editor .ql-video iframe {
+  width: 100%;
+  height: 100%;
+  display: block; /* Remove extra space below iframe */
+  border: none; /* Remove default iframe border */
 }

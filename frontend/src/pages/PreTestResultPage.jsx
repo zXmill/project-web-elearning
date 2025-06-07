@@ -5,7 +5,7 @@ import { useCourseProgress } from '../contexts/CourseProgressContext';
 const PreTestResultPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { courseId } = useParams();
+  const { identifier } = useParams(); // Changed courseId to identifier
   const { 
     markModuleAsCompleted, 
     modules: contextModules,
@@ -20,10 +20,11 @@ const PreTestResultPage = () => {
   const { results, score, totalQuestions, percentage, courseTitle, moduleTitle, questions: allQuestions } = location.state || {};
 
   useEffect(() => {
-    if (courseId && (!contextModules || contextModules.length === 0 || courseId !== currentCourseId)) {
-      fetchCourseProgressAndModules(courseId);
+    // Compare identifier with stringified currentCourseId from context (which should be numeric)
+    if (identifier && (!contextModules || contextModules.length === 0 || identifier !== String(currentCourseId))) {
+      fetchCourseProgressAndModules(identifier); // Use identifier for fetching
     }
-  }, [courseId, contextModules, currentCourseId, fetchCourseProgressAndModules]);
+  }, [identifier, contextModules, currentCourseId, fetchCourseProgressAndModules]); // Use identifier in dependencies
 
   useEffect(() => {
     const markPreTestAsDone = async () => {
@@ -43,14 +44,14 @@ const PreTestResultPage = () => {
     };
 
     markPreTestAsDone();
-  }, [results, contextModules, getPreTestModule, isModuleCompleted, markModuleAsCompleted, courseId]);
+  }, [results, contextModules, getPreTestModule, isModuleCompleted, markModuleAsCompleted, identifier]); // Use identifier in dependencies
 
   if (!results || !allQuestions) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <p>Hasil pre-test tidak tersedia. Silakan coba kerjakan pre-test terlebih dahulu.</p>
         <button 
-            onClick={() => navigate(`/course/${courseId}/pretest`)}
+            onClick={() => navigate(`/course/${identifier}/pretest`)} // Use identifier
             className="mt-4 px-6 py-2 bg-teraplus-accent text-white rounded-lg hover:opacity-90"
         >
             Kembali ke Pre-Test
@@ -63,9 +64,10 @@ const PreTestResultPage = () => {
 
   const handleContinueToMaterial = () => {
     if (!contextModules || contextModules.length === 0) {
-      navigate(`/course/${courseId}`); // Fallback to course detail
+      navigate(`/course/${identifier}`); // Fallback to course detail - Use identifier
       return;
     }
+  
   
     const preTestModule = getPreTestModule();
     let startIndex = 0;
@@ -76,29 +78,28 @@ const PreTestResultPage = () => {
       }
     }
   
-    let firstActualContentModule = null;
+    let firstActualContentModuleOrder = -1; // This will be 1-based order for URL
+
     for (let i = startIndex; i < contextModules.length; i++) {
       const module = contextModules[i];
-      // Look for typical content types, excluding quiz types
-      if (module.type === 'PAGE' || module.type === 'pdf' || module.type === 'web') {
-        firstActualContentModule = module;
+      // Consistent content types with CourseContentPage
+      if (['PAGE', 'pdf', 'web', 'VIDEO', 'text', 'video'].includes(module.type)) {
+        firstActualContentModuleOrder = i + 1; // The order is the 0-based index + 1
         break;
       }
     }
   
-    if (firstActualContentModule) {
-      navigate(`/course/${courseId}/content/${firstActualContentModule.id}`);
+    if (firstActualContentModuleOrder !== -1) {
+      navigate(`/course/${identifier}/content/${firstActualContentModuleOrder}`); 
     } else {
       // If no typical content module is found next, try to find a post-test
-      const postTestModule = contextModules.find(m => m.type === 'POST_TEST_QUIZ');
+      // Consistent check with CourseContentPage (includes lowercase variants)
+      const postTestModule = contextModules.find(m => m.type === 'POST_TEST_QUIZ' || m.type === 'post_test');
       if (postTestModule) {
-         // If CourseContentPage is smart enough to redirect POST_TEST_QUIZ to /posttest,
-         // then navigating to its content/:id page is fine.
-         // Otherwise, navigate directly to /posttest
-        navigate(`/course/${courseId}/content/${postTestModule.id}`); 
-        // Or, more directly: navigate(`/course/${courseId}/posttest`);
+        navigate(`/course/${identifier}/posttest`); 
       } else {
-        navigate(`/course/${courseId}`); // Fallback to course detail page if no content or post-test
+        // Fallback to course detail page if no content or post-test
+        navigate(`/course/${identifier}`); 
       }
     }
   };
@@ -109,10 +110,10 @@ const PreTestResultPage = () => {
         <div className="flex justify-between items-start mb-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-teraplus-text-default">Hasil Pre-Test</h1>
-            <p className="text-sm text-gray-500">{moduleTitle || courseTitle || `Kursus ${courseId}`}</p>
+            <p className="text-sm text-gray-500">{moduleTitle || courseTitle || `Kursus ${identifier}`}</p> 
           </div>
           <button 
-            onClick={() => navigate(`/course/${courseId}/content`)}
+            onClick={() => navigate(`/course/${identifier}/content`)} // Use identifier
             className="text-xl font-bold text-gray-400 hover:text-gray-600"
             title="Lanjutkan ke Materi Kursus"
           >
@@ -152,24 +153,18 @@ const PreTestResultPage = () => {
                         <div 
                           key={opt.id} 
                           className={`p-2 rounded flex items-center
-                            ${opt.id === item.correctOptionId ? 'bg-green-100 border-l-4 border-green-500' : ''}
-                            ${opt.id === item.selectedOptionId && opt.id !== item.correctOptionId ? 'bg-red-100 border-l-4 border-red-500' : ''}
+                            ${opt.id === item.selectedOptionId && item.isCorrect ? 'bg-green-100 border-l-4 border-green-500' : ''}
+                            ${opt.id === item.selectedOptionId && !item.isCorrect ? 'bg-red-100 border-l-4 border-red-500' : ''}
                             ${opt.id === item.selectedOptionId ? 'font-semibold' : ''}
                           `}
                         >
                           <span className={`mr-2 w-5 h-5 flex items-center justify-center rounded-full border text-xs
-                            ${opt.id === item.correctOptionId ? 'bg-green-500 text-white border-green-500' : 'border-gray-300'}
-                            ${opt.id === item.selectedOptionId && opt.id !== item.correctOptionId ? 'bg-red-500 text-white border-red-500' : ''}
+                            ${opt.id === item.selectedOptionId && item.isCorrect ? 'bg-green-500 text-white border-green-500' : ''}
+                            ${opt.id === item.selectedOptionId && !item.isCorrect ? 'bg-red-500 text-white border-red-500' : 'border-gray-300'}
                           `}>
                             {String.fromCharCode(65 + item.options.indexOf(opt))}
                           </span>
                           <span>{opt.text}</span>
-                          {opt.id === item.selectedOptionId && !item.isCorrect && (
-                              <span className="ml-auto text-xs text-red-600">(Jawaban Anda)</span>
-                          )}
-                           {opt.id === item.correctOptionId && (
-                              <span className="ml-auto text-xs text-green-600">(Jawaban Benar)</span>
-                          )}
                         </div>
                       ))}
                     </div>

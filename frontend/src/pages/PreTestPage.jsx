@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom'; // Added Link
 import api from '../services/api';
 import { useCourseProgress } from '../contexts/CourseProgressContext'; // Import context
 
 const PreTestPage = () => {
-  const { courseId } = useParams();
+  const { identifier } = useParams(); // Changed courseId to identifier
   const navigate = useNavigate();
   const { 
     modules: contextModules, 
     fetchCourseProgressAndModules, 
     isLoading: progressContextIsLoading, 
-    currentCourseId: contextCourseIdForProgress 
+    currentCourseId: contextCourseIdForProgress, // This is the numeric ID from context
+    recordAndMarkTestAsCompleted, // Get this from context
+    fetchedByIdentifier // Get this from context
   } = useCourseProgress();
 
   const [questions, setQuestions] = useState([]);
@@ -23,11 +25,11 @@ const PreTestPage = () => {
   const [preTestModuleId, setPreTestModuleId] = useState(null); 
 
   useEffect(() => {
-    // Fetch modules from context if not available for this course
-    if (courseId && (!contextCourseIdForProgress || contextCourseIdForProgress !== courseId)) {
-      fetchCourseProgressAndModules(courseId);
+    // Fetch course progress if not already fetched for this identifier
+    if (identifier && identifier !== fetchedByIdentifier) {
+      fetchCourseProgressAndModules(identifier);
     }
-  }, [courseId, contextCourseIdForProgress, fetchCourseProgressAndModules]);
+  }, [identifier, fetchedByIdentifier, fetchCourseProgressAndModules]);
 
   const navigationTargetForBackButton = useMemo(() => {
     if (!contextModules || contextModules.length === 0 || progressContextIsLoading) {
@@ -60,7 +62,7 @@ const PreTestPage = () => {
       try {
         setLoading(true);
         setError('');
-        const response = await api.get(`/courses/${courseId}/pre-test/questions`);
+        const response = await api.get(`/courses/${identifier}/pre-test/questions`); // Changed courseId to identifier
         if (response.data && response.data.status === 'success') {
           const fetchedQuestions = response.data.data.questions || [];
           const parsedQuestions = fetchedQuestions.map(q => {
@@ -92,10 +94,10 @@ const PreTestPage = () => {
       }
     };
 
-    if (courseId) {
+    if (identifier) { // Changed courseId to identifier
       fetchPreTestQuestions();
     }
-  }, [courseId]);
+  }, [identifier]); // Changed courseId to identifier
 
   const handleOptionChange = (questionId, optionId) => {
     setSelectedOptions(prev => ({ ...prev, [questionId]: optionId }));
@@ -121,6 +123,13 @@ const PreTestPage = () => {
       return;
     }
 
+    // Ensure the numeric course ID from context is available
+    if (!contextCourseIdForProgress) {
+      setError("Informasi kursus tidak lengkap. Tidak dapat mengirimkan hasil. Silakan coba muat ulang halaman.");
+      console.error("Numeric Course ID from context (contextCourseIdForProgress) is not available for handleSubmit.");
+      return;
+    }
+
     let correctAnswersCount = 0;
     const resultsForReview = questions.map(q => {
       const selectedOptId = selectedOptions[q.id];
@@ -142,13 +151,11 @@ const PreTestPage = () => {
     const percentage = questions.length > 0 ? (correctAnswersCount / questions.length) * 100 : 0;
 
     try {
-      await api.post(`/courses/${courseId}/modules/${preTestModuleId}/record-score`, {
-        score: percentage, // Send percentage as score
-        answers: selectedOptions // Send the raw selected options map
-      });
+      // Use the context function which internally uses the numeric currentCourseId
+      await recordAndMarkTestAsCompleted(preTestModuleId, percentage);
       
       // Navigate to the result page
-      navigate(`/course/${courseId}/pretest-result`, { 
+      navigate(`/course/${identifier}/pretest-result`, {
         state: { 
           results: resultsForReview, 
           score: correctAnswersCount, 
@@ -188,6 +195,15 @@ const PreTestPage = () => {
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <div className="mb-6">
+        <Link 
+          to={`/courses/${identifier}/moduleslist`} // Changed courseId to identifier
+          className="inline-flex items-center text-teraplus-accent hover:text-teraplus-hover focus:outline-none focus:ring-2 focus:ring-teraplus-accent-light rounded-md px-3 py-1 transition-colors duration-150"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          Kembali ke Daftar Modul
+        </Link>
+      </div>
       <h1 className="text-2xl sm:text-3xl font-bold text-teraplus-text-default mb-2">
         {moduleTitle || `Pre-Test: ${courseTitle}`}
       </h1>
@@ -216,10 +232,18 @@ const PreTestPage = () => {
           <button
             onClick={() => {
               if (currentQuestionIndex === 0 && navigationTargetForBackButton) {
-                if (navigationTargetForBackButton.type === 'module') {
-                  navigate(`/course/${courseId}/content/${navigationTargetForBackButton.data.id}`);
-                } else { // type === 'course_detail'
-                  navigate(`/course/${courseId}`);
+                if (navigationTargetForBackButton.type === 'module' && navigationTargetForBackButton.data) {
+                  // Find the 0-based index of this module in contextModules
+                  const moduleIndex = contextModules.findIndex(m => m.id === navigationTargetForBackButton.data.id);
+                  if (moduleIndex !== -1) {
+                    // Navigate using 1-based order
+                    navigate(`/course/${identifier}/content/${moduleIndex + 1}`);
+                  } else {
+                    // Fallback if module not found in context (should not happen if logic is correct)
+                    navigate(`/course/${identifier}`); 
+                  }
+                } else { // type === 'course_detail' or data is missing
+                  navigate(`/course/${identifier}`); 
                 }
               } else {
                 handlePrevious(); // Original handler for previous question

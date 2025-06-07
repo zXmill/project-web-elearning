@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react'; // Removed useMemo as it's not directly used after refactor
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import YouTube from 'react-youtube';
 import { Document, Page, pdfjs } from 'react-pdf';
 // import api from '../services/api'; // api calls will be through context or direct if needed
@@ -17,7 +17,7 @@ const extractYouTubeID = (url) => {
 };
 
 const CourseContentPage = () => {
-  const { courseId, moduleId: moduleIdFromParams } = useParams();
+  const { identifier, moduleOrder: moduleOrderFromParams } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const {
@@ -29,8 +29,9 @@ const CourseContentPage = () => {
     fetchCourseProgressAndModules,
     isLoading: progressIsLoading,
     error: progressError,
-    currentCourseId: contextCourseId,
+    currentCourseId: contextCourseId, // Numeric ID from context
     courseTitle: contextCourseTitle, // Get courseTitle from context
+    fetchedByIdentifier // Identifier used for the last successful fetch in context
   } = useCourseProgress();
 
   const [currentModule, setCurrentModule] = useState(null);
@@ -47,17 +48,14 @@ const CourseContentPage = () => {
 
 
   useEffect(() => {
-    if (courseId && user && courseId !== contextCourseId) {
-      // If context is for a different course, or not loaded yet for this course
-      fetchCourseProgressAndModules(courseId);
-    } else if (!user && courseId) {
-      // Handle non-logged in user trying to access content - redirect or show message
+    // Fetch if the context hasn't been loaded with the current URL identifier
+    if (identifier && user && identifier !== fetchedByIdentifier) {
+      fetchCourseProgressAndModules(identifier);
+    } else if (!user && identifier) {
       setPageError("Anda harus login untuk mengakses konten kursus.");
       setPageLoading(false);
-      // Optionally navigate to login after a delay
-      // setTimeout(() => navigate('/login'), 3000);
     }
-  }, [courseId, user, contextCourseId, fetchCourseProgressAndModules]);
+  }, [identifier, user, fetchedByIdentifier, fetchCourseProgressAndModules]);
 
 
   useEffect(() => {
@@ -71,113 +69,132 @@ const CourseContentPage = () => {
       return;
     }
 
+    const CONTENT_MODULE_TYPES = ['PAGE', 'pdf', 'web', 'VIDEO', 'text', 'video']; // Added lowercase variants
+    const ALL_NAVIGABLE_MODULE_TYPES = [...CONTENT_MODULE_TYPES, 'PRE_TEST_QUIZ', 'POST_TEST_QUIZ', 'pre_test', 'post_test'];
+
+
     if (contextModules && contextModules.length > 0) {
-      // setCourseTitle(`Course ${courseId}`); // REMOVED: Placeholder, ideally fetched with modules or course details
+      setPageError(''); // Clear any previous page error if modules are now available
+      let targetModule = null;
+      let targetIndex = -1; // 0-based index
 
-      let targetModule;
-      let targetIndex = -1;
-
-      if (moduleIdFromParams) {
-        targetIndex = contextModules.findIndex(m => m.id.toString() === moduleIdFromParams);
-        if (targetIndex !== -1) {
-          targetModule = contextModules[targetIndex];
-        } else {
-          setPageError("Modul tidak ditemukan.");
+      if (moduleOrderFromParams) {
+        const order = parseInt(moduleOrderFromParams, 10);
+        if (isNaN(order) || order < 1 || order > contextModules.length) {
+          setPageError("Urutan modul tidak valid.");
           setPageLoading(false);
           return;
         }
-      } else { // No moduleIdFromParams, this is the "Lanjutkan Kursus" or direct /content access
-        let resumeModule = null;
-        let resumeIndex = -1;
+        targetIndex = order - 1; // Convert 1-based order to 0-based index
+        targetModule = contextModules[targetIndex];
+        
+        if (!targetModule) { // Should not happen if order is within bounds
+          setPageError("Modul dengan urutan tersebut tidak ditemukan.");
+          setPageLoading(false);
+          return;
+        }
+        // If the target module from order is a pre/post test, redirect immediately
+        if (targetModule.type === 'PRE_TEST_QUIZ' || targetModule.type === 'pre_test') {
+            navigate(`/course/${identifier}/pretest`, { replace: true });
+            setPageLoading(false);
+            return;
+        }
+        if (targetModule.type === 'POST_TEST_QUIZ' || targetModule.type === 'post_test') {
+            navigate(`/course/${identifier}/posttest`, { replace: true });
+            setPageLoading(false);
+            return;
+        }
 
-        // Helper to check if a module is a content module
-        const isContentModuleType = (moduleType) => 
-          moduleType === 'PAGE' || moduleType === 'pdf' || moduleType === 'web' || moduleType === 'VIDEO';
+      } else { // No moduleOrderFromParams, user hit /course/:identifier/content
+        let resumeModuleCandidate = null;
+        let resumeModuleOrderForNav = -1; // 1-based order for navigation
 
-        // 1. Try to resume at lastAccessedModuleId if it's a content module
+        // 1. Try last accessed content module
         if (lastAccessedModuleId) {
-          const lastAccessedIdx = contextModules.findIndex(m => m.id.toString() === lastAccessedModuleId.toString());
-          if (lastAccessedIdx !== -1) {
-            const lastAccessedMod = contextModules[lastAccessedIdx];
-            if (isContentModuleType(lastAccessedMod.type)) {
-              resumeModule = lastAccessedMod; // Go to this module, completed or not
-              resumeIndex = lastAccessedIdx;
+          const lastAccessedModIndex = contextModules.findIndex(m => m.id.toString() === lastAccessedModuleId.toString());
+          if (lastAccessedModIndex !== -1) {
+            const lastAccessedMod = contextModules[lastAccessedModIndex];
+            if (lastAccessedMod && CONTENT_MODULE_TYPES.includes(lastAccessedMod.type)) {
+              resumeModuleCandidate = lastAccessedMod;
+              resumeModuleOrderForNav = lastAccessedModIndex + 1;
             }
           }
         }
 
-        // 2. If no suitable lastAccessedModuleId (not set, or not a content module), 
-        //    find the first incomplete content module.
-        if (!resumeModule) {
+        // 2. Try first uncompleted content module
+        if (!resumeModuleCandidate) {
           for (let i = 0; i < contextModules.length; i++) {
             const mod = contextModules[i];
-            if (isContentModuleType(mod.type) && !isModuleCompleted(mod.id)) {
-              resumeModule = mod;
-              resumeIndex = i;
+            if (CONTENT_MODULE_TYPES.includes(mod.type) && !isModuleCompleted(mod.id)) {
+              resumeModuleCandidate = mod;
+              resumeModuleOrderForNav = i + 1;
               break;
             }
           }
         }
         
-        // 3. If still no resumeModule (all content modules are completed, or no content modules to begin with,
-        //    or lastAccessed was not content and no incomplete content modules were found),
-        //    then, check for Pre-Test (if not done), then Post-Test.
-        if (!resumeModule) {
-          const preTestMod = contextModules.find(m => m.type === 'PRE_TEST_QUIZ');
-          // Check if pre-test exists and is not completed
-          if (preTestMod && !isModuleCompleted(preTestMod.id)) {
-            // Prioritize incomplete pre-test if all content is done or no suitable resume point found yet
-            resumeModule = preTestMod;
-            resumeIndex = contextModules.findIndex(m => m.id === preTestMod.id);
-          } else {
-            // If pre-test is done or doesn't exist, or if we are past it, consider post-test
-            const postTestMod = contextModules.find(m => m.type === 'POST_TEST_QUIZ');
-            if (postTestMod) {
-              resumeModule = postTestMod; // Go to post-test if it exists
-              resumeIndex = contextModules.findIndex(m => m.id === postTestMod.id);
-            } else if (contextModules.length > 0) { 
-              // Fallback: No suitable content, no pre/post test, go to first module overall
-              // This could happen if a course only has completed content modules and no tests.
-              // Or if lastAccessedModuleId was a quiz that's now completed.
-              // To be safe, try to find the *last* content module if all are complete.
-              let lastContentModule = null;
-              let lastContentIndex = -1;
-              for (let i = contextModules.length - 1; i >= 0; i--) {
-                  if (isContentModuleType(contextModules[i].type)) {
-                      lastContentModule = contextModules[i];
-                      lastContentIndex = i;
-                      break;
-                  }
-              }
-              if (lastContentModule) {
-                  resumeModule = lastContentModule;
-                  resumeIndex = lastContentIndex;
-              } else { // Truly no content modules, or only quiz modules left (which should have been caught)
-                  resumeModule = contextModules[0]; // Default to very first module
-                  resumeIndex = 0;
-              }
-            } else {
-              // No modules at all
-              setPageError("Kursus ini tidak memiliki modul.");
-            }
+        // 3. Try Pre-Test (if not completed) - this will navigate away from content page
+        if (!resumeModuleCandidate) {
+          const preTestModIndex = contextModules.findIndex(m => (m.type === 'PRE_TEST_QUIZ' || m.type === 'pre_test') && !isModuleCompleted(m.id));
+          if (preTestModIndex !== -1) {
+            navigate(`/course/${identifier}/pretest`, { replace: true });
+            setPageLoading(false); return;
+          }
+        }
+
+        // 4. Try Post-Test (even if completed, as it's a valid navigation point) - this will navigate away
+        if (!resumeModuleCandidate) {
+          const postTestModIndex = contextModules.findIndex(m => m.type === 'POST_TEST_QUIZ' || m.type === 'post_test');
+          if (postTestModIndex !== -1) {
+             navigate(`/course/${identifier}/posttest`, { replace: true });
+             setPageLoading(false); return;
           }
         }
         
-        targetModule = resumeModule;
-        targetIndex = resumeIndex;
-      }
+        // 5. If all content modules are completed, try the last content module
+        if (!resumeModuleCandidate) { 
+          for (let i = contextModules.length - 1; i >= 0; i--) {
+            if (CONTENT_MODULE_TYPES.includes(contextModules[i].type)) {
+              resumeModuleCandidate = contextModules[i];
+              resumeModuleOrderForNav = i + 1;
+              break;
+            }
+          }
+        }
+
+        // 6. Fallback to the very first content module if any other logic fails
+        if (!resumeModuleCandidate) { 
+            const firstContentModuleIndex = contextModules.findIndex(m => CONTENT_MODULE_TYPES.includes(m.type));
+            if (firstContentModuleIndex !== -1) {
+                resumeModuleCandidate = contextModules[firstContentModuleIndex];
+                resumeModuleOrderForNav = firstContentModuleIndex + 1;
+            }
+        }
+        
+        if (resumeModuleCandidate && resumeModuleOrderForNav !== -1) {
+          // Navigate to the determined content module by its order
+          navigate(`/course/${identifier}/content/${resumeModuleOrderForNav}`, { replace: true });
+          setPageLoading(false); 
+          return; 
+        } else {
+            // If truly no navigable content module, or pre/post test, show error or redirect to list
+            // This case should ideally be rare if a course has any content.
+            setPageError("Tidak ada modul konten yang dapat ditampilkan untuk dilanjutkan.");
+            setPageLoading(false);
+            return;
+        }
+      } 
       
       if (targetModule) {
-        // Redirect to specific quiz pages if module type is a quiz
-        if (targetModule.type === 'PRE_TEST_QUIZ') {
-          navigate(`/course/${courseId}/pretest`);
-          setPageLoading(false); // Prevent further state changes that might cause issues
-          return; // Exit early from this effect
+        if (targetModule.type === 'PRE_TEST_QUIZ' || targetModule.type === 'pre_test') {
+          navigate(`/course/${identifier}/pretest`, { replace: true });
+          setPageLoading(false);
+          return;
         }
-        if (targetModule.type === 'POST_TEST_QUIZ') {
-          navigate(`/course/${courseId}/posttest`);
-          setPageLoading(false); // Prevent further state changes
-          return; // Exit early from this effect
+        if (targetModule.type === 'POST_TEST_QUIZ' || targetModule.type === 'post_test') {
+          navigate(`/course/${identifier}/posttest`, { replace: true });
+          setPageLoading(false);
+          return;
         }
 
         setCurrentModule(targetModule);
@@ -185,61 +202,103 @@ const CourseContentPage = () => {
         setNumPages(null); 
         setCurrentPageNumber(1);
 
-        // Mark as completed if it's a viewable type and not already completed
-        if (targetModule.type === 'PAGE' || targetModule.type === 'pdf' || targetModule.type === 'web' || targetModule.type === 'VIDEO') {
+        if (CONTENT_MODULE_TYPES.includes(targetModule.type)) {
           if (!isModuleCompleted(targetModule.id)) {
             markModuleAsCompleted(targetModule.id);
           }
         }
-      } else {
-         setPageError("Tidak ada modul yang dapat ditampilkan.");
       }
       setPageLoading(false);
-    } else if (!progressIsLoading) { // No modules and not loading
+    } else { // If not loading, no error, but modules are empty or contextModules is null
+      // console.log('[CourseContentPage] Condition for error met: contextModules is empty or null, and not loading/no error.'); // Keep this commented or remove
       setPageError("Tidak ada modul konten yang ditemukan untuk kursus ini.");
       setCurrentModule(null);
       setPageLoading(false);
     }
-
   }, [
-    moduleIdFromParams, 
+    identifier,
+    moduleOrderFromParams, // Changed from moduleIdFromParams
     contextModules, 
-    completedModuleIds, 
-    lastAccessedModuleId, 
-    isModuleCompleted, 
-    markModuleAsCompleted, 
-    progressIsLoading, 
+    progressIsLoading,
     progressError,
-    courseId, // Added courseId to re-evaluate if it changes
-    navigate // Added navigate as a dependency
+    user, // Added user to ensure context re-evaluates if user changes
+    fetchCourseProgressAndModules,
+    navigate,
+    lastAccessedModuleId,
+    isModuleCompleted,
+    markModuleAsCompleted,
+    fetchedByIdentifier
   ]);
 
+  const CONTENT_MODULE_TYPES_FOR_NAV = ['PAGE', 'pdf', 'web', 'VIDEO', 'text', 'video'];
 
   const handleNextModule = () => {
-    if (currentModuleIndex < contextModules.length - 1) {
-      const nextIndex = currentModuleIndex + 1;
-      const nextModule = contextModules[nextIndex];
-      // Navigate to the new module URL, which will trigger re-render and useEffects
-      navigate(`/course/${courseId}/content/${nextModule.id}`);
-    } else {
-      // Last content module, navigate to Post-Test
-      // Before navigating, ensure this last module is marked complete
-      if (currentModule && !isModuleCompleted(currentModule.id) && (currentModule.type === 'PAGE' || currentModule.type === 'pdf' || currentModule.type === 'web')) {
-        markModuleAsCompleted(currentModule.id);
+    if (!currentModule || currentModuleIndex === -1 || !contextModules || contextModules.length === 0) return;
+
+    if (CONTENT_MODULE_TYPES_FOR_NAV.includes(currentModule.type) && !isModuleCompleted(currentModule.id)) {
+      markModuleAsCompleted(currentModule.id);
+    }
+
+    let nextNavigableModule = null;
+    let nextModuleOrder = -1;
+    for (let i = currentModuleIndex + 1; i < contextModules.length; i++) {
+      const mod = contextModules[i];
+      if (['PAGE', 'pdf', 'web', 'VIDEO', 'text', 'video', 'PRE_TEST_QUIZ', 'pre_test', 'POST_TEST_QUIZ', 'post_test'].includes(mod.type)) {
+        nextNavigableModule = mod;
+        nextModuleOrder = i + 1; // 1-based order
+        break;
       }
-      navigate(`/course/${courseId}/posttest`);
+    }
+
+    if (nextNavigableModule) {
+      if (nextNavigableModule.type === 'PRE_TEST_QUIZ' || nextNavigableModule.type === 'pre_test') {
+        navigate(`/course/${identifier}/pretest`);
+      } else if (nextNavigableModule.type === 'POST_TEST_QUIZ' || nextNavigableModule.type === 'post_test') {
+        navigate(`/course/${identifier}/posttest`);
+      } else if (nextModuleOrder !== -1) { // Check if it's a content module with a valid order
+        navigate(`/course/${identifier}/content/${nextModuleOrder}`);
+      } else {
+        // Should not happen if logic is correct, but as a fallback:
+        navigate(`/course/${identifier}/posttest`); 
+      }
+    } else {
+      navigate(`/course/${identifier}/posttest`);
     }
   };
 
   const handlePreviousModule = () => {
-    if (currentModuleIndex > 0) {
-      const prevIndex = currentModuleIndex - 1;
-      const prevModule = contextModules[prevIndex];
-      navigate(`/course/${courseId}/content/${prevModule.id}`);
-    }
-  };
+    // Logic for handlePreviousModule should be here
+    // For now, I'll add a placeholder and ensure the structure is correct.
+    // TODO: Implement actual previous module navigation logic similar to handleNextModule
+    if (!currentModule || currentModuleIndex === -1 || !contextModules || contextModules.length === 0) return;
 
-  // PDF Pagination functions
+    let prevNavigableModule = null;
+    let prevModuleOrder = -1;
+    for (let i = currentModuleIndex - 1; i >= 0; i--) {
+      const mod = contextModules[i];
+      if (['PAGE', 'pdf', 'web', 'VIDEO', 'text', 'video', 'PRE_TEST_QUIZ', 'pre_test', 'POST_TEST_QUIZ', 'post_test'].includes(mod.type)) {
+        prevNavigableModule = mod;
+        prevModuleOrder = i + 1; // 1-based order
+        break;
+      }
+    }
+
+    if (prevNavigableModule) {
+      if (prevNavigableModule.type === 'PRE_TEST_QUIZ' || prevNavigableModule.type === 'pre_test') {
+        navigate(`/course/${identifier}/pretest`);
+      } else if (prevNavigableModule.type === 'POST_TEST_QUIZ' || prevNavigableModule.type === 'post_test') {
+        navigate(`/course/${identifier}/posttest`);
+      } else if (prevModuleOrder !== -1) { // Check if it's a content module with a valid order
+        navigate(`/course/${identifier}/content/${prevModuleOrder}`);
+      } else {
+        // Fallback, though less likely for previous
+        navigate(`/course/${identifier}/moduleslist`);
+      }
+    } else {
+      navigate(`/course/${identifier}/moduleslist`);
+    }
+  }; // THIS WAS THE MISSING BRACE
+
   const onDocumentLoadSuccess = ({ numPages: nextNumPages }) => {
     setNumPages(nextNumPages);
     setCurrentPageNumber(1); // Reset to page 1 when new PDF loads
@@ -275,6 +334,15 @@ const CourseContentPage = () => {
 
   return (
     <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+      <div className="mb-6">
+        <Link 
+          to={`/course/${identifier}/moduleslist`}  // Use identifier and corrected path segment
+          className="inline-flex items-center text-teraplus-accent hover:text-teraplus-hover focus:outline-none focus:ring-2 focus:ring-teraplus-accent-light rounded-md px-3 py-1 transition-colors duration-150"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+          Kembali ke Daftar Modul
+        </Link>
+      </div>
       <h1 className="text-2xl sm:text-3xl font-bold text-teraplus-text-default mb-2">
         {currentModule ? currentModule.judul : 'Memuat judul modul...'}
       </h1>
@@ -284,7 +352,9 @@ const CourseContentPage = () => {
 
       <div className="bg-white p-6 sm:p-8 rounded-lg shadow-lg border border-gray-200 min-h-[400px]">
         {currentModule.type === 'PAGE' && currentModule.initialContent && (
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: currentModule.initialContent }} />
+          <div className="ql-snow"> {/* Outer container for theme styles if needed */}
+            <div className="ql-editor prose max-w-none" dangerouslySetInnerHTML={{ __html: currentModule.initialContent }} />
+          </div>
         )}
         {currentModule.type === 'PAGE' && !currentModule.initialContent && currentModule.contentText && (
           <div className="prose max-w-none">
@@ -294,16 +364,19 @@ const CourseContentPage = () => {
         {currentModule.type === 'pdf' && currentModule.pdfPath && (
           <div className="prose max-w-none">
             <h2 className="text-xl font-semibold mb-3">{currentModule.judul}</h2>
-            <div className="w-full min-h-[600px] bg-gray-100 rounded-lg overflow-hidden">
+            <div className="w-full bg-gray-100 rounded-lg overflow-hidden flex flex-col" style={{ height: '1200px' }}> {/* Restored overflow-hidden, kept inline style for height */}
+
+
               <Document
                 file={currentModule.pdfPath} // Make sure pdfPath is correct
+                className="flex-grow min-h-0 flex flex-col" // Allow document to grow and share space
                 loading={
-                  <div className="flex justify-center items-center h-[600px]">
+                  <div className="flex justify-center items-center flex-grow"> 
                     <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-teraplus-accent"></div>
                   </div>
                 }
                 error={
-                  <div className="flex justify-center items-center h-[600px] text-red-500">
+                  <div className="flex justify-center items-center flex-grow"> 
                     Gagal memuat PDF. Pastikan file tersedia dan dalam format yang benar.
                   </div>
                 }
@@ -311,23 +384,25 @@ const CourseContentPage = () => {
               >
                 <Page
                   pageNumber={currentPageNumber}
-                  width={Math.min(800, window.innerWidth - 48)} // Responsive width with padding
+                  height={1170} // Increased height for the page rendering
+                  // width prop removed to allow scaling to container
+                  className="w-full h-full flex flex-col" // Page's wrapper div tries to fill Document, and is a flex container
                   renderTextLayer={false} // Keep false for performance unless specified
                   renderAnnotationLayer={false} // Keep false for performance unless specified
                   loading={
-                    <div className="flex justify-center items-center h-[400px]">
+                    <div className="flex justify-center items-center flex-grow"> {/* Use flex-grow */}
                       Memuat halaman...
                     </div>
                   }
                   error={
-                    <div className="flex justify-center items-center h-[400px] text-red-500">
+                    <div className="flex justify-center items-center flex-grow"> {/* Use flex-grow */}
                       Gagal memuat halaman PDF.
                     </div>
                   }
                 />
               </Document>
               {numPages && (
-                <div className="mt-4 flex justify-center items-center space-x-4">
+                <div className="mt-4 flex justify-center items-center space-x-4 shrink-0"> {/* Added shrink-0 */}
                   <button
                     onClick={goToPreviousPage}
                     disabled={currentPageNumber <= 1}

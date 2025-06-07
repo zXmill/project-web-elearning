@@ -17,7 +17,8 @@ const CourseManagement = () => {
     area: '',
     syaratDanKetentuan: '',
     needsPreTest: true,
-    prerequisites: []
+    prerequisites: [],
+    slug: '' // Add slug to formData
   });
 
   useEffect(() => {
@@ -126,7 +127,8 @@ const CourseManagement = () => {
       area: course.area || '',
       syaratDanKetentuan: course.syaratDanKetentuan || '',
       needsPreTest: course.needsPreTest ?? true,
-      prerequisites: course.prerequisites || []
+      prerequisites: course.prerequisites || [],
+      slug: course.slug || '' // Populate slug on edit
     });
     setSelectedImageFile(null); // Clear any previously selected file for a new edit session
     
@@ -163,7 +165,8 @@ const CourseManagement = () => {
       area: '',
       syaratDanKetentuan: '',
       needsPreTest: true,
-      prerequisites: []
+      prerequisites: [],
+      slug: '' // Reset slug
     });
     setSelectedImageFile(null);
     setImagePreview('');
@@ -296,6 +299,18 @@ const CourseManagement = () => {
                     onChange={(e) => setFormData({...formData, judul: e.target.value})}
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Slug</label>
+                  <input
+                    type="text"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({...formData, slug: e.target.value.toLowerCase().replace(/\s+/g, '-')})}
+                    placeholder="contoh: dasar-pijat-effleurage (otomatis dari judul jika kosong)"
+                    className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Slug digunakan untuk URL. Jika dikosongkan, akan dibuat otomatis dari judul. Gunakan huruf kecil, angka, dan tanda hubung (-).</p>
                 </div>
                 
                 <div>

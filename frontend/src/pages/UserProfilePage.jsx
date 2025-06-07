@@ -1,13 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom'; // Import Link
 import api from '../services/api';
-import { UserCircleIcon, EnvelopeIcon, CalendarDaysIcon, IdentificationIcon, CameraIcon, ArrowUpTrayIcon, ArrowLeftIcon } from '@heroicons/react/24/outline'; // Added ArrowLeftIcon
+import { UserCircleIcon, EnvelopeIcon, CalendarDaysIcon, IdentificationIcon, CameraIcon, ArrowUpTrayIcon, ArrowLeftIcon, BuildingOfficeIcon, PhoneIcon } from '@heroicons/react/24/outline'; // Added BuildingOfficeIcon, PhoneIcon
 import { useAuth } from '../contexts/AuthContext'; // Corrected useAuth import
 
 const UserProfilePage = () => {
   const { user: authUser, setUser: setAuthUser, loading: authLoading } = useAuth(); // Get user and setUser from useAuth
   const [user, setUser] = useState(null); // Local user state for this page
-  const [namaLengkap, setNamaLengkap] = useState('');
+  const [formData, setFormData] = useState({
+    namaLengkap: '',
+    affiliasi: '',
+    noHp: '',
+  });
   const [loading, setLoading] = useState(true); // General loading for page data
   const [uploading, setUploading] = useState(false); // Specific loading for image upload
   const [error, setError] = useState('');
@@ -26,7 +30,11 @@ const UserProfilePage = () => {
         if (response.data && response.data.status === 'success') {
           const fullUserProfile = response.data.data.user;
           setUser(fullUserProfile); // Update local state for this page
-          setNamaLengkap(fullUserProfile.namaLengkap); // Update local state for form input
+          setFormData({
+            namaLengkap: fullUserProfile.namaLengkap,
+            affiliasi: fullUserProfile.affiliasi || '',
+            noHp: fullUserProfile.noHp || '',
+          });
 
           // Update global AuthContext with the full user profile
           // This will make namaLengkap and profilePicture available to Header and other components
@@ -53,26 +61,36 @@ const UserProfilePage = () => {
     fetchUserProfile();
   }, []);
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMessage('');
-    if (!namaLengkap.trim()) {
-        setError('Nama lengkap tidak boleh kosong.');
+    if (!formData.namaLengkap.trim() || !formData.affiliasi.trim() || !formData.noHp.trim()) {
+        setError('Nama lengkap, Afiliasi, dan No. HP tidak boleh kosong.');
         return;
     }
     try {
       setLoading(true);
-      const response = await api.put('/auth/profile', { namaLengkap: namaLengkap.trim() });
+      const response = await api.put('/auth/profile', formData);
       if (response.data && response.data.status === 'success') {
         const updatedUserFromPut = response.data.data.user;
         setUser(updatedUserFromPut); // Update local state
-        setNamaLengkap(updatedUserFromPut.namaLengkap);
+        setFormData({
+            namaLengkap: updatedUserFromPut.namaLengkap,
+            affiliasi: updatedUserFromPut.affiliasi || '',
+            noHp: updatedUserFromPut.noHp || '',
+        });
         
         // Update AuthContext after successful name update
         setAuthUser(prevAuthUser => ({
           ...prevAuthUser,
           namaLengkap: updatedUserFromPut.namaLengkap
+          // affiliasi and noHp are not typically stored in global auth context unless needed everywhere
         }));
         
         localStorage.setItem('userName', updatedUserFromPut.namaLengkap); 
@@ -267,22 +285,64 @@ const UserProfilePage = () => {
               <p className="text-lg text-gray-700">{new Date(user.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </div>
           </div>
+          <div className="flex items-center space-x-3">
+            <BuildingOfficeIcon className="h-7 w-7 text-teraplus-primary" />
+            <div>
+              <p className="text-sm text-gray-500">Afiliasi</p>
+              <p className="text-lg text-gray-700">{user.affiliasi || '-'}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <PhoneIcon className="h-7 w-7 text-teraplus-primary" />
+            <div>
+              <p className="text-sm text-gray-500">No. HP</p>
+              <p className="text-lg text-gray-700">{user.noHp || '-'}</p>
+            </div>
+          </div>
         </div>
 
         <hr className="my-8" />
 
         <form onSubmit={handleProfileUpdate} className="space-y-6">
-          <h2 className="text-xl font-semibold text-gray-700 mb-4">Ubah Nama Lengkap</h2>
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">Ubah Data Profil</h2>
           <div>
             <label htmlFor="namaLengkap" className="block text-sm font-medium text-gray-700 mb-1">
-              Nama Lengkap Baru
+              Nama Lengkap
             </label>
             <input
               type="text"
               id="namaLengkap"
               name="namaLengkap"
-              value={namaLengkap}
-              onChange={(e) => setNamaLengkap(e.target.value)}
+              value={formData.namaLengkap}
+              onChange={handleChange}
+              className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teraplus-primary focus:border-teraplus-primary sm:text-sm"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="affiliasi" className="block text-sm font-medium text-gray-700 mb-1">
+              Afiliasi
+            </label>
+            <input
+              type="text"
+              id="affiliasi"
+              name="affiliasi"
+              value={formData.affiliasi}
+              onChange={handleChange}
+              className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teraplus-primary focus:border-teraplus-primary sm:text-sm"
+              required
+            />
+          </div>
+          <div>
+            <label htmlFor="noHp" className="block text-sm font-medium text-gray-700 mb-1">
+              No. HP
+            </label>
+            <input
+              type="text"
+              id="noHp"
+              name="noHp"
+              value={formData.noHp}
+              onChange={handleChange}
               className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teraplus-primary focus:border-teraplus-primary sm:text-sm"
               required
             />

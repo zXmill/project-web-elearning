@@ -138,7 +138,7 @@ export default function Home() {
                     title={course.judul}
                     category={`${course.area || 'General'}`} // Display area only
                     imageSrc={course.imageSrc || `https://via.placeholder.com/400x225.png?text=${encodeURIComponent(course.judul)}`} // Use imageSrc from API or fallback
-                    onViewClick={() => navigate(`/course/${course.id}`)} // Navigate to course detail page
+                    onViewClick={() => navigate(`/course/${course.slug || course.id}`)} // Navigate using slug or ID
                   />
                 ))
               ) : (

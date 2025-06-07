@@ -17,7 +17,12 @@ const CourseNavigation = ({ courseId, modules, currentModuleId }) => {
     } else if (module.isPostTest) {
       navigate(`/courses/${courseId}/posttest/${module.id}`);
     } else {
-      navigate(`/courses/${courseId}/content/${module.id}`);
+      if (module.order !== undefined) {
+        navigate(`/course/${courseId}/content/${module.order}`);
+      } else {
+        console.error("Module order undefined for navigation", module);
+        alert("Terjadi kesalahan: Urutan modul tidak ditemukan.");
+      }
     }
   };
 
