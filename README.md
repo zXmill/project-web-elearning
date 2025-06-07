@@ -104,14 +104,14 @@ FRONTEND_URL=http://localhost:3000
    # You might also need to run: node scripts/seedRemainingModulesAndQuestions.js
    ```
    The seeding process creates a default user. Credentials can be found in `dokumen/credentials.txt`:
-   - **Email:** `test@teraplus.com`
-   - **Password:** `password123`
+   - **Email:** `1@teraplus.com`
+   - **Password:** `AdminPass456`
    This user may have admin privileges.
 
 ## Default User Credentials
 After seeding the database, a default user account is available for testing:
-- **Email:** `test@teraplus.com`
-- **Password:** `password123`
+- **Email:** `1@teraplus.com`
+- **Password:** `AdminPass456`
 This account may have administrative privileges depending on the seed data.
 
 ## Testing
