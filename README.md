@@ -13,18 +13,27 @@ Project E-Learning Unesa is a comprehensive e-learning platform featuring a mode
 - [x] Admin role and dashboard
 - [x] User profile page
 - [x] Password reset functionality
+- [x] User profile picture upload
+- [x] User profile fields for affiliation and phone number
+- [ ] Multi Create User
 
 ### Course & Content Management (Admin)
-- [ ] CRUD operations for courses
-- [ ] CRUD operations for modules within courses
-- [ ] CRUD operations for content (videos, articles) within modules
-- [ ] Ability to set course prerequisites
+- [x] CRUD operations for courses
+- [x] CRUD operations for modules within courses
+- [x] CRUD operations for content (videos, articles, PDFs) within modules
+- [x] Ability to set course prerequisites
+- [x] Support for PDF as a module content type
+- [x] SEO-friendly slugs for courses
+- [x] "Initial content" field for modules
+- [x] Configuration for course post-tests (e.g., linking questions)
+- [x] "Explanation" field for quiz/assessment questions
+- [x] Tracking of correct option for quiz/assessment questions
 - [ ] Ability to manage course categories/tags
 
 ### Course & Content Consumption (User)
-- [ ] Browse and filter courses
+- [x] Browse and filter courses
 - [x] Enroll in courses
-- [ ] View course content (videos, articles)
+- [x] View course content (videos, articles, PDFs)
 - [x] Track course progress
 - [x] Mark modules/content as complete
 - [ ] Search functionality for courses and content
@@ -140,4 +149,3 @@ This account may have administrative privileges depending on the seed data.
   Contributions are welcome! Please fork the repository, create your feature branch, and open a pull request.
 
 ## License
-Fix commit
