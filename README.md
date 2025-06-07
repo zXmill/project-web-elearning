@@ -28,7 +28,7 @@ Project E-Learning Unesa is a comprehensive e-learning platform featuring a mode
 - [x] Configuration for course post-tests (e.g., linking questions)
 - [x] "Explanation" field for quiz/assessment questions
 - [x] Tracking of correct option for quiz/assessment questions
-- [ ] Ability to manage course categories/tags
+- [x] Ability to manage course categories/tags
 
 ### Course & Content Consumption (User)
 - [x] Browse and filter courses
@@ -42,7 +42,7 @@ Project E-Learning Unesa is a comprehensive e-learning platform featuring a mode
 - [x] Quizzes/assessments within modules
 - [x] Automatic grading for quizzes
 - [x] Certificate download upon course completion (currently serves a dummy PDF: `dokumen/sertif.pdf`)
-- [ ] View certificate page (frontend route `/course/:courseId/certificate` is planned)
+- [x] View and download certificate page 
 
 ## How to Use
 
