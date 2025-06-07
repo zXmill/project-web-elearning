@@ -39,4 +39,22 @@ api.interceptors.response.use(
   }
 );
 
+// Function to handle bulk user creation by admin
+export const bulkCreateUsersAdmin = async (formData) => {
+  try {
+    const response = await api.post('/admin/users/bulk-create', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data; // Assuming the backend returns { status, message, data }
+  } catch (error) {
+    // The error will be processed by the interceptor, but we can throw it again
+    // or handle it specifically if needed here.
+    // For now, let the interceptor handle logging and re-throw.
+    console.error('Error in bulkCreateUsersAdmin service call:', error.response?.data || error.message);
+    throw error; // Re-throw to be caught by the component
+  }
+};
+
 export default api;

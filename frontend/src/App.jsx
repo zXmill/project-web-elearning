@@ -26,10 +26,11 @@ import CertificatePage from './pages/CertificatePage'; // Import CertificatePage
 import ModuleListPage from './pages/ModuleListPage'; // Import ModuleListPage
 import CourseManagement from './components/Admin/CourseManagement'; // Import CourseManagement for admin courses
 import AdminContentPage from './pages/AdminContentPage'; // Import AdminContentPage
+import AdminSettingsPage from './pages/AdminSettingsPage'; // Import AdminSettingsPage
 
 // Placeholder Admin Pages for routing
 const AdminContent = AdminContentPage;
-const AdminSettings = () => <div className="p-6 bg-white rounded-lg shadow-md"><h1 className="text-2xl font-semibold">Admin Settings</h1><p className="mt-2 text-gray-600">Various admin-specific settings will be configured here.</p></div>;
+// const AdminSettings = () => <div className="p-6 bg-white rounded-lg shadow-md"><h1 className="text-2xl font-semibold">Admin Settings</h1><p className="mt-2 text-gray-600">Various admin-specific settings will be configured here.</p></div>; // Replaced with AdminSettingsPage
 
 function ProfileCompletionGuard({ children }) {
   const { user, loadingAuth } = useAuth(); // Destructure loadingAuth
@@ -228,7 +229,7 @@ export default function App() {
                   <Route path="users" element={<AdminUsersPage />} />
                   <Route path="courses" element={<CourseManagement />} /> {/* Replace placeholder with CourseManagement component */}
                   <Route path="content" element={<AdminContent />} />
-                  <Route path="settings" element={<AdminSettings />} />
+                  <Route path="settings" element={<AdminSettingsPage />} /> {/* Use AdminSettingsPage */}
                   {/* Add other nested admin routes here as needed */}
                 </Route>
               </Route>

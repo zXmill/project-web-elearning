@@ -69,17 +69,12 @@ Project E-Learning Unesa is a comprehensive e-learning platform featuring a mode
      ```
 
 ### Running the Application
-- **Backend:**  
-  Start the Express server from the `backend` folder:  
-  ```bash
-  npm run dev
-  ```
-- **Frontend:**  
-  Start the React application from the `frontend` folder:  
-  ```bash
-  npm start
-  ```
-  Open [http://localhost:3000](http://localhost:3000) in your browser.
+To run both the backend and frontend concurrently, navigate to the project root directory and execute:
+```bash
+npm run dev
+```
+This command will start the Express server for the backend and the React development server for the frontend.
+The frontend will typically be available at [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## Environment Variables
 
@@ -114,7 +109,7 @@ After seeding the database, a default user account is available for testing:
 - **Password:** `AdminPass456`
 This account may have administrative privileges depending on the seed data.
 
-## Testing
+## For Testing Purpose
 
 - **Backend:**
   - Add your Jest or Mocha tests in `backend/tests/`.

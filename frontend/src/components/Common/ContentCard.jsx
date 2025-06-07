@@ -6,9 +6,8 @@ const PLACEHOLDER_IMAGE_URL = "https://via.placeholder.com/400x225.png?text=TERA
 const ContentCard = ({
   imageSrc,
   title = "Judul Konten Default", // "Lorem ipsum dolor sit amet consectetur."
-  category = "Kategori", // This will be used as the short description under "FREE"
-  // We'll add a new prop for the author/info line if needed, or use category.
-  // For now, the "FREE" and "Lorem ipsum urna fermentum" are static as per the design.
+  category = "Kategori", 
+
   onViewClick, 
 }) => {
   const effectiveImageSrc = imageSrc || PLACEHOLDER_IMAGE_URL;
@@ -28,15 +27,10 @@ const ContentCard = ({
         <h3 className="text-base font-semibold text-gray-800 mb-1">
           {title}
         </h3>
-        <p className="text-sm font-medium text-gray-700 mb-1">FREE</p>
         <p className="text-xs text-gray-500 mb-3 flex-grow min-h-[2.5em]">
           {category} {/* Using category as the short description */}
         </p>
         <hr className="border-gray-200 my-2" />
-        <div className="flex items-center">
-          <div className="w-6 h-6 rounded-full bg-gray-300 mr-2"></div> {/* Placeholder Avatar */}
-          <p className="text-xs text-gray-500">Lorem ipsum urna fermentum</p>
-        </div>
       </div>
     </div>
   );
