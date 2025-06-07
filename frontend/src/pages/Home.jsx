@@ -21,6 +21,7 @@ export default function Home() {
   const [selectedArea, setSelectedArea] = useState(bodyAreas[0]);
   // const [selectedLevel, setSelectedLevel] = useState(massageLevels[0]); // Removed
   const { user, loading: authLoading } = useAuth(); // Use the auth hook
+  const [currentSearchQuery, setCurrentSearchQuery] = useState(""); // Added for search
 
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
@@ -51,20 +52,21 @@ export default function Home() {
   const userNameToDisplay = user ? (user.namaLengkap || user.email || "Pengguna") : "Pengguna";
 
   const handleSearch = (query) => {
-    console.log("Search Query:", query);
-    // Future: Implement search logic based on API if backend supports it,
-    // or filter 'courses' state locally.
+    setCurrentSearchQuery(query); // Update search query state
   };
 
   // const handleLevelChange = (e) => { // Removed
   //   setSelectedLevel(e.target.value);
   // };
   
-  // Filtering logic now only uses 'area' from the fetched courses
-  const filteredCourses = courses.filter(course => 
-    (selectedArea === "Semua Area" || course.area === selectedArea)
-    // && (selectedLevel === "Semua Level" || course.level === selectedLevel) // Level filter removed
-  );
+  // Filtering logic now uses 'area' and search query
+  const filteredCourses = courses
+    .filter(course => 
+      (selectedArea === "Semua Area" || course.area === selectedArea)
+    )
+    .filter(course => 
+      course.judul.toLowerCase().includes(currentSearchQuery.toLowerCase())
+    );
 
   if (authLoading) {
     return (

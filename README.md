@@ -15,7 +15,7 @@ Project E-Learning Unesa is a comprehensive e-learning platform featuring a mode
 - [x] Password reset functionality
 - [x] User profile picture upload
 - [x] User profile fields for affiliation and phone number
-- [ ] Multi Create User
+- [x] Multi Create User
 
 ### Course & Content Management (Admin)
 - [x] CRUD operations for courses
@@ -36,7 +36,7 @@ Project E-Learning Unesa is a comprehensive e-learning platform featuring a mode
 - [x] View course content (videos, articles, PDFs)
 - [x] Track course progress
 - [x] Mark modules/content as complete
-- [ ] Search functionality for courses and content
+- [x] Search functionality for courses and content
 
 ### Assessment & Certification
 - [x] Quizzes/assessments within modules
