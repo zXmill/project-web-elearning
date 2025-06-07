@@ -1,5 +1,16 @@
 const { Course, Module, Question, Enrollment, UserProgress, sequelize } = require('../models'); // Added Enrollment, UserProgress, sequelize
 
+// Helper function to generate a slug
+const generateSlug = (title) => {
+  if (!title) return '';
+  return title
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '') // Remove non-word characters (excluding spaces and hyphens)
+    .replace(/\s+/g, '-')     // Replace spaces with hyphens
+    .replace(/--+/g, '-')      // Replace multiple hyphens with single hyphen
+    .trim();                  // Trim leading/trailing hyphens/spaces
+};
+
 // Get all courses with their modules count
 exports.getAllCourses = async (req, res) => {
   try {
@@ -91,7 +102,8 @@ exports.createCourse = async (req, res) => {
       area,
       syaratDanKetentuan,
       needsPreTest,
-      prerequisites
+      prerequisites,
+      slug: providedSlug // Add slug to destructuring
     } = req.body;
 
     let imageSrcPath = req.body.imageSrc; // Allow manual URL input as fallback
@@ -108,9 +120,22 @@ exports.createCourse = async (req, res) => {
       });
     }
 
+    // Generate slug from judul if not provided or if providedSlug is empty
+    const slug = providedSlug && providedSlug.trim() !== '' ? generateSlug(providedSlug.trim()) : generateSlug(judul);
+
+    // Check for slug uniqueness before creating
+    const existingCourseWithSlug = await Course.findOne({ where: { slug } });
+    if (existingCourseWithSlug) {
+      return res.status(400).json({
+        status: 'fail',
+        message: `Slug "${slug}" sudah digunakan. Harap gunakan slug lain.`
+      });
+    }
+
     const course = await Course.create({
       judul,
       deskripsi,
+      slug, // Add slug to creation
       imageSrc: imageSrcPath, // Use the path from file upload or manual input
       area,
       syaratDanKetentuan,
@@ -150,7 +175,8 @@ exports.updateCourse = async (req, res) => {
       area,
       syaratDanKetentuan,
       needsPreTest,
-      prerequisites
+      prerequisites,
+      slug: newSlug // Add slug to destructuring
     } = req.body;
 
     const course = await Course.findByPk(id);
@@ -177,6 +203,36 @@ exports.updateCourse = async (req, res) => {
     if (syaratDanKetentuan !== undefined) course.syaratDanKetentuan = syaratDanKetentuan;
     if (needsPreTest !== undefined) course.needsPreTest = needsPreTest === 'true' || needsPreTest === true;
     if (prerequisites !== undefined) course.prerequisites = prerequisites;
+
+    if (newSlug !== undefined && newSlug.trim() !== '') {
+      const generatedNewSlug = generateSlug(newSlug.trim());
+      if (course.slug !== generatedNewSlug) { // Only update if different
+        // Check for slug uniqueness before updating
+        const existingCourseWithSlug = await Course.findOne({ where: { slug: generatedNewSlug, id: { [require('sequelize').Op.ne]: id } } });
+        if (existingCourseWithSlug) {
+          return res.status(400).json({
+            status: 'fail',
+            message: `Slug "${generatedNewSlug}" sudah digunakan. Harap gunakan slug lain.`
+          });
+        }
+        course.slug = generatedNewSlug;
+      }
+    } else if (newSlug !== undefined && newSlug.trim() === '' && course.slug !== null) {
+      // If an empty slug is explicitly provided, set it to null (or handle as error if slugs are mandatory)
+      // For now, let's assume an empty slug means "remove current slug" / set to null if DB allows
+      // However, if slugs become mandatory, this logic should change.
+      // If judul changed and no slug provided, we are NOT auto-regenerating slug here to prevent accidental URL changes.
+      // Admin must explicitly provide a new slug or clear it.
+      // If you want to allow clearing the slug:
+      // course.slug = null; 
+      // For now, let's prevent clearing to null if it was previously set, unless explicitly handled.
+      // If newSlug is empty string, and you want to auto-generate from title if title changed:
+      if (judul && course.judul !== judul && (!newSlug || newSlug.trim() === '')) {
+         // This part is tricky: if title changes and slug is empty, do we regenerate?
+         // For now, let's say NO. Slug must be explicitly managed.
+      }
+    }
+
 
     await course.save();
 

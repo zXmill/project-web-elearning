@@ -13,14 +13,14 @@ module.exports = (sequelize, DataTypes) => {
     },
     judul: { type: DataTypes.STRING, allowNull: false },
     type: {
-      type: DataTypes.ENUM('PAGE', 'PRE_TEST_QUIZ', 'POST_TEST_QUIZ'),
+      type: DataTypes.ENUM('PAGE', 'PRE_TEST_QUIZ', 'POST_TEST_QUIZ', 'PDF_DOCUMENT'), // Added PDF_DOCUMENT
       allowNull: false,
     },
     contentText: { type: DataTypes.TEXT, allowNull: true }, // For instructions (e.g., for QUIZ types) or simple text content
-    initialContent: { type: DataTypes.TEXT, allowNull: true }, // For PAGE type, stores HTML from Rich Text Editor - TO BE ADDED BY NEW MIGRATION
-    pageContent: { type: DataTypes.JSON, allowNull: true }, // For 'PAGE' type (structured content) or QUIZ type (JSON questions). Is JSON in existing migration.
-    pdfPath: { type: DataTypes.STRING, allowNull: true },    // Legacy: For 'pdf' type
-    videoLink: { type: DataTypes.STRING, allowNull: true },  // Legacy: For 'video' type
+    initialContent: { type: DataTypes.TEXT, allowNull: true }, // For PAGE type, stores HTML from Rich Text Editor
+    pageContent: { type: DataTypes.JSON, allowNull: true }, // For 'PAGE' type (structured content) or QUIZ type (JSON questions).
+    pdfPath: { type: DataTypes.STRING, allowNull: true },    // Repurposed: For 'PDF_DOCUMENT' type, stores URL/path to the PDF
+    videoLink: { type: DataTypes.STRING, allowNull: true },  // Legacy: For 'video' type (can be handled by PAGE type)
     order: { type: DataTypes.INTEGER, allowNull: false },   // For sequencing modules
   });
 

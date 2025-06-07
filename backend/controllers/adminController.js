@@ -30,6 +30,71 @@ exports.getDashboardSummary = async (req, res) => {
   }
 };
 
+// Controller for uploading PDF files from Rich Text Editor
+exports.uploadContentPdf = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      status: 'fail',
+      message: 'Tidak ada file PDF yang diunggah.',
+    });
+  }
+
+  try {
+    // The file is uploaded by multer to req.file
+    // The path stored in req.file.path is the absolute path on the server.
+    // We need to construct a public URL.
+    // Assuming 'public' is served statically and 'uploads/modules' is within 'public'.
+    const publicUrl = `/uploads/modules/${req.file.filename}`;
+
+    res.status(200).json({
+      status: 'success',
+      message: 'File PDF berhasil diunggah.',
+      data: {
+        url: publicUrl, // URL to access the file
+        filename: req.file.filename,
+      },
+    });
+  } catch (error) {
+    console.error('Error processing PDF upload:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal memproses unggahan PDF.',
+    });
+  }
+};
+
+// Controller for uploading PDF files for PDF_DOCUMENT module type
+exports.uploadModulePdf = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({
+      status: 'fail',
+      message: 'Tidak ada file PDF yang diunggah.',
+    });
+  }
+
+  try {
+    // req.file is populated by multer.
+    // We need to return a public URL.
+    // Assuming 'public' is served statically and 'uploads/modules/' is the target (consistent with admin.js multer setup).
+    const publicUrl = `/uploads/modules/${req.file.filename}`;
+
+    res.status(200).json({
+      status: 'success',
+      message: 'File PDF modul berhasil diunggah.',
+      data: {
+        url: publicUrl, // URL to access the file (will be stored in module.pdfPath)
+        filename: req.file.filename,
+      },
+    });
+  } catch (error) {
+    console.error('Error processing module PDF upload:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal memproses unggahan PDF modul.',
+    });
+  }
+};
+
 // Placeholder for Get All Users (Admin)
 exports.getAllUsers = async (req, res) => {
   try {

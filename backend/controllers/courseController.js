@@ -24,10 +24,18 @@ exports.getAllCourses = async (req, res) => {
   }
 };
 
-// Get a single course by ID
-exports.getCourseById = async (req, res) => {
+// Get a single course by ID or Slug
+exports.getCourseBySlugOrId = async (req, res) => {
   try {
-    const course = await db.Course.findByPk(req.params.id); // Changed to db.Course
+    const { identifier } = req.params;
+    let course;
+
+    // Check if identifier is numeric (likely an ID) or a string (likely a slug)
+    if (!isNaN(identifier)) {
+      course = await db.Course.findByPk(identifier);
+    } else {
+      course = await db.Course.findOne({ where: { slug: identifier } });
+    }
 
     if (!course) {
       return res.status(404).json({
@@ -36,14 +44,21 @@ exports.getCourseById = async (req, res) => {
       });
     }
 
+    // Optionally, include associated data like modules if needed for the detail page
+    // Example:
+    // const courseWithDetails = await db.Course.findOne({
+    //   where: course.id ? { id: course.id } : { slug: course.slug }, // Re-fetch with associations
+    //   include: [{ model: db.Module, as: 'modules', order: [['order', 'ASC']] }]
+    // });
+
     res.status(200).json({
       status: 'success',
       data: {
-        course,
+        course: course, // Send the fetched course (or courseWithDetails if you re-fetch)
       },
     });
   } catch (error) {
-    console.error('Error fetching course by ID:', error);
+    console.error('Error fetching course by slug or ID:', error);
     res.status(500).json({
       status: 'error',
       message: 'Gagal mengambil data kursus.',
@@ -51,10 +66,17 @@ exports.getCourseById = async (req, res) => {
   }
 };
 
-exports.getPreTestQuestionsByCourseId = async (req, res) => {
+// Renamed from getPreTestQuestionsByCourseId
+exports.getPreTestQuestionsByIdentifier = async (req, res) => {
   try {
-    const courseId = req.params.courseId;
-    const course = await db.Course.findByPk(courseId);
+    const { identifier } = req.params;
+    let course;
+
+    if (!isNaN(identifier)) {
+      course = await db.Course.findByPk(identifier);
+    } else {
+      course = await db.Course.findOne({ where: { slug: identifier } });
+    }
 
     if (!course) {
       return res.status(404).json({ status: 'fail', message: 'Kursus tidak ditemukan.' });
@@ -67,8 +89,8 @@ exports.getPreTestQuestionsByCourseId = async (req, res) => {
     // Find the pre-test module for this course
     const preTestModule = await db.Module.findOne({
       where: {
-        courseId: courseId,
-        type: 'PRE_TEST_QUIZ' // Correct ENUM value
+        courseId: course.id, // Use course.id
+        type: 'PRE_TEST_QUIZ'
       }
     });
 
@@ -79,7 +101,7 @@ exports.getPreTestQuestionsByCourseId = async (req, res) => {
     // Get all questions for that pre-test module
     const questions = await db.Question.findAll({
       where: { moduleId: preTestModule.id },
-      attributes: ['id', 'teksSoal', 'type', 'options', 'correctOptionId', 'explanation'] // Specify attributes to send, added explanation
+      attributes: ['id', 'teksSoal', 'type', 'options', 'correctOptionId', 'explanation']
     });
 
     if (!questions || questions.length === 0) {
@@ -91,7 +113,7 @@ exports.getPreTestQuestionsByCourseId = async (req, res) => {
       data: {
         courseTitle: course.judul,
         moduleTitle: preTestModule.judul,
-        moduleId: preTestModule.id, // Added moduleId
+        moduleId: preTestModule.id,
         questions: questions
       }
     });
@@ -102,10 +124,17 @@ exports.getPreTestQuestionsByCourseId = async (req, res) => {
   }
 };
 
-exports.getPostTestQuestionsByCourseId = async (req, res) => {
+// Renamed from getPostTestQuestionsByCourseId
+exports.getPostTestQuestionsByIdentifier = async (req, res) => {
   try {
-    const courseId = req.params.courseId;
-    const course = await db.Course.findByPk(courseId);
+    const { identifier } = req.params;
+    let course;
+
+    if (!isNaN(identifier)) {
+      course = await db.Course.findByPk(identifier);
+    } else {
+      course = await db.Course.findOne({ where: { slug: identifier } });
+    }
 
     if (!course) {
       return res.status(404).json({ status: 'fail', message: 'Kursus tidak ditemukan.' });
@@ -114,8 +143,8 @@ exports.getPostTestQuestionsByCourseId = async (req, res) => {
     // Find the post-test module for this course
     const postTestModule = await db.Module.findOne({
       where: {
-        courseId: courseId,
-        type: 'POST_TEST_QUIZ' // Correct ENUM value
+        courseId: course.id, // Use course.id
+        type: 'POST_TEST_QUIZ'
       }
     });
 
@@ -138,6 +167,7 @@ exports.getPostTestQuestionsByCourseId = async (req, res) => {
       data: {
         courseTitle: course.judul,
         moduleTitle: postTestModule.judul,
+        moduleId: postTestModule.id, // Added moduleId for consistency, though not strictly in original
         questions: questions
       }
     });
@@ -511,25 +541,27 @@ exports.recordTestScore = async (req, res) => {
 // Get user progress for a specific course
 exports.getUserProgressForCourse = async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId, 10);
+    const { identifier } = req.params; // Changed from courseId to identifier
+    const userId = req.user.id;
 
-    if (!req.user || typeof req.user.id === 'undefined') {
+    if (!req.user || typeof userId === 'undefined') { // Check userId directly
       return res.status(401).json({
         status: 'fail',
         message: 'Autentikasi pengguna gagal atau ID pengguna tidak ditemukan.',
       });
     }
-    const userId = req.user.id;
-
-    if (isNaN(courseId)) {
-      return res.status(400).json({ status: 'fail', message: 'ID Kursus tidak valid.' });
+    let course;
+    if (!isNaN(identifier)) {
+      course = await db.Course.findByPk(identifier);
+    } else {
+      course = await db.Course.findOne({ where: { slug: identifier } });
     }
 
-    // Check if course exists
-    const course = await db.Course.findByPk(courseId);
     if (!course) {
       return res.status(404).json({ status: 'fail', message: 'Kursus tidak ditemukan.' });
     }
+
+    const courseId = course.id; // Use the numeric ID from the fetched course
 
     // Ensure enrollment
     let enrollment = await db.Enrollment.findOne({ where: { userId: userId, courseId: courseId }});
@@ -551,45 +583,44 @@ exports.getUserProgressForCourse = async (req, res) => {
     
     // Fetch all UserProgress records for this user and course
     const userProgressRows = await db.UserProgress.findAll({
-      where: { userId: userId, courseId: courseId },
+      where: { userId: userId, courseId: courseId }, // Use numeric courseId
       attributes: ['moduleId', 'completedAt', 'score', 'lastAccessedAt'], // Specify attributes
     });
 
     // Fetch all modules for the course
     const modules = await db.Module.findAll({
-      where: { courseId: courseId },
+      where: { courseId: courseId }, // Use numeric courseId
       order: [['order', 'ASC']],
       // Specify attributes needed by the frontend context
-      attributes: ['id', 'judul', 'type', 'order', 'initialContent', 'contentText', 'videoLink', 'pdfPath', 'courseId'] // Removed quizId
+      attributes: ['id', 'judul', 'type', 'order', 'initialContent', 'contentText', 'videoLink', 'pdfPath', 'courseId']
     });
 
-    if (!modules || modules.length === 0) {
-      // This case should ideally not happen if a course exists, but good to handle
-      // If the course has no modules, the frontend should still get an empty modules array.
-    }
-    
     // userProgressRows will be an empty array if no progress, which is fine.
     // The enrollment check that returned 403 is now removed as enrollment is guaranteed.
-    // completedModulesCount can be calculated on the frontend from userProgressRows if needed,
-    // or kept here for convenience.
     let completedModulesCount = 0;
     userProgressRows.forEach(row => {
       if (row.completedAt) completedModulesCount++;
     });
 
-    res.status(200).json({
+    const plainCourse = course.get({ plain: true });
+    const plainModules = modules.map(m => m.get({ plain: true }));
+    const plainUserProgress = userProgressRows.map(up => up.get({ plain: true }));
+    
+    const responseData = {
       status: 'success',
       message: 'Modul dan progres pengguna berhasil diambil.',
       data: {
-        courseTitle: course.judul, // Added course title to the response
-        modules: modules, // Include the modules array
-        userProgress: userProgressRows, // Standardize to 'userProgress'
-        // completedModulesCount: completedModulesCount, // Optional: if frontend still wants this pre-calculated
+        courseId: plainCourse.id,
+        courseTitle: plainCourse.judul,
+        modules: plainModules,
+        userProgress: plainUserProgress,
       },
-    });
+    };
+    res.status(200).json(responseData);
 
   } catch (error) {
     console.error('Error fetching user progress:', error);
+    console.error(error.stack); // Ensure stack trace is logged for any errors
     res.status(500).json({
       status: 'error',
       message: 'Gagal mengambil progres pengguna.',
@@ -601,14 +632,21 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs'); // For potential font loading, though not used in this basic example
 
 // Helper function to get eligibility data (extracted and adapted from checkCertificateEligibility)
-async function getCertificateEligibilityData(userId, courseId) {
+async function getCertificateEligibilityData(userId, identifier) { // Changed courseId to identifier
   // 1. Fetch Course and User details
-  const course = await db.Course.findByPk(courseId);
-  const user = await db.User.findByPk(userId, { attributes: ['id', 'namaLengkap', 'email'] }); // Changed 'nama' to 'namaLengkap'
+  let course;
+  if (!isNaN(identifier)) {
+    course = await db.Course.findByPk(identifier);
+  } else {
+    course = await db.Course.findOne({ where: { slug: identifier } });
+  }
+  const user = await db.User.findByPk(userId, { attributes: ['id', 'namaLengkap', 'email'] });
 
   if (!course) {
     return { eligible: false, message: 'Kursus tidak ditemukan.', reasons: ['Kursus tidak ditemukan.'] };
   }
+  const courseId = course.id; // Use numeric ID internally
+
   if (!user) {
     return { eligible: false, message: 'Pengguna tidak ditemukan.', reasons: ['Pengguna tidak ditemukan.'] };
   }
@@ -636,16 +674,21 @@ async function getCertificateEligibilityData(userId, courseId) {
   let postTestScore = null;
   if (postTestModule) {
     const postTestProgress = userProgressRows.find(row => row.moduleId === postTestModule.id);
-    postTestScore = postTestProgress ? postTestProgress.score : null;
+    if (postTestProgress) {
+        postTestScore = postTestProgress.score; // Score can be null if attempted but not scored, or if column is nullable
+    }
+    
     if (course.needsPostTest) { // Assuming Course model has needsPostTest and minimumPostTestScore
       if (postTestScore === null || postTestScore < (course.minimumPostTestScore || 70)) {
         eligible = false;
-        reasons.push(`Skor post-test (${postTestScore !== null ? postTestScore : 'Belum ada'}) di bawah minimum (${course.minimumPostTestScore || 70}).`);
+        const reasonMsg = `Skor post-test (${postTestScore !== null ? postTestScore : 'Belum ada'}) di bawah minimum (${course.minimumPostTestScore || 70}).`;
+        reasons.push(reasonMsg);
       }
     }
   } else if (course.needsPostTest) {
     eligible = false;
-    reasons.push('Modul post-test tidak ditemukan untuk kursus ini.');
+    const reasonMsg = 'Modul post-test tidak ditemukan untuk kursus ini.';
+    reasons.push(reasonMsg);
   }
 
 
@@ -709,23 +752,24 @@ async function getCertificateEligibilityData(userId, courseId) {
 // Check certificate eligibility for a course
 exports.checkCertificateEligibility = async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId, 10);
-    if (!req.user || typeof req.user.id === 'undefined') {
-      return res.status(401).json({ status: 'fail', message: 'Autentikasi pengguna gagal.' });
-    }
+    const { identifier } = req.params; // Changed from courseId
     const userId = req.user.id;
 
-    if (isNaN(courseId)) {
-      return res.status(400).json({ status: 'fail', message: 'ID Kursus tidak valid.' });
+    if (!req.user || typeof userId === 'undefined') {
+      return res.status(401).json({ status: 'fail', message: 'Autentikasi pengguna gagal.' });
     }
+    // No need to check isNaN for identifier here, getCertificateEligibilityData will handle it
 
-    const eligibilityResult = await getCertificateEligibilityData(userId, courseId);
+    const eligibilityResult = await getCertificateEligibilityData(userId, identifier); // Pass identifier
 
     if (eligibilityResult.eligible) {
       // Construct fileName similar to how it's done in downloadCertificate
       const courseNameForFile = eligibilityResult.data.courseName.replace(/\s+/g, '_');
       const userNameForFile = eligibilityResult.data.userName.replace(/\s+/g, '_');
       const fileName = `Sertifikat-${courseNameForFile}-${userNameForFile}.pdf`;
+      
+      // Use the original identifier (slug or ID) for the URL
+      const coursePathSegment = identifier; 
 
       res.status(200).json({
         status: 'success',
@@ -733,7 +777,7 @@ exports.checkCertificateEligibility = async (req, res) => {
         message: 'Selamat! Anda berhak mendapatkan sertifikat.',
         data: {
           ...eligibilityResult.data,
-          certificateUrl: `/api/courses/${courseId}/certificate/download`, // Relative URL for API
+          certificateUrl: `/courses/${coursePathSegment}/certificate/download`, 
           fileName: fileName,
         },
       });
@@ -759,17 +803,15 @@ exports.checkCertificateEligibility = async (req, res) => {
 // Download certificate for a course
 exports.downloadCertificate = async (req, res) => {
   try {
-    const courseId = parseInt(req.params.courseId, 10);
-    if (!req.user || typeof req.user.id === 'undefined') {
-      return res.status(401).json({ status: 'fail', message: 'Autentikasi pengguna gagal.' });
-    }
+    const { identifier } = req.params; // Changed from courseId
     const userId = req.user.id;
 
-    if (isNaN(courseId)) {
-      return res.status(400).json({ status: 'fail', message: 'ID Kursus tidak valid.' });
+    if (!req.user || typeof userId === 'undefined') {
+      return res.status(401).json({ status: 'fail', message: 'Autentikasi pengguna gagal.' });
     }
+    // No need to check isNaN for identifier here
 
-    const eligibilityResult = await getCertificateEligibilityData(userId, courseId);
+    const eligibilityResult = await getCertificateEligibilityData(userId, identifier); // Pass identifier
 
     if (!eligibilityResult.eligible) {
       return res.status(403).json({ // 403 Forbidden as they are not eligible

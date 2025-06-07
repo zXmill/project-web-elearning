@@ -79,10 +79,12 @@ exports.createModule = async (req, res) => {
       judul,
       type,
       contentText,
-      // pdfPath will come from req.file if uploaded
+      // pdfPath will come from req.body.pdfPath (URL from separate upload) for PDF_DOCUMENT type
+      // videoLink is legacy
+      pdfPath, // Expecting this in req.body for PDF_DOCUMENT
       videoLink,
-      order
-      // isPreTest, isPostTest, hasQuiz are not in the Module model directly
+      order,
+      initialContent // Expecting this in req.body for PAGE type
     } = req.body;
 
     // Validation
@@ -94,7 +96,7 @@ exports.createModule = async (req, res) => {
     }
 
     // Validate module type
-    const validTypes = ['PAGE', 'PRE_TEST_QUIZ', 'POST_TEST_QUIZ'];
+    const validTypes = ['PAGE', 'PRE_TEST_QUIZ', 'POST_TEST_QUIZ', 'PDF_DOCUMENT']; // Added PDF_DOCUMENT
     if (!validTypes.includes(type)) {
       return res.status(400).json({
         status: 'fail',
@@ -102,13 +104,18 @@ exports.createModule = async (req, res) => {
       });
     }
 
-    // pdfPath and videoLink are legacy or will be part of pageContent for PAGE type.
-    // For now, we primarily handle contentText and pageContent (which might be null from frontend initially)
-    let pdfPathValue = null;
-    let videoLinkValue = null;
-    // let pageContentValue = req.body.pageContent || null; // Old: using pageContent
-    let initialContentValue = req.body.initialContent || null; // New: expecting initialContent for rich text
-
+    let moduleData = {
+      courseId: parseInt(courseId, 10),
+      judul,
+      type,
+      contentText: type !== 'PDF_DOCUMENT' ? (contentText || null) : null,
+      initialContent: type === 'PAGE' ? (initialContent || null) : null,
+      pageContent: null, // Explicitly nullify pageContent if initialContent is primary
+      pdfPath: type === 'PDF_DOCUMENT' ? (pdfPath || null) : null,
+      videoLink: type !== 'PDF_DOCUMENT' ? (videoLink || null) : null, // Keep legacy videoLink for non-PDF types if sent
+      // order will be handled below
+    };
+    
     // If order is not provided, place at the end
     let moduleOrder = parseInt(order, 10);
     if (isNaN(moduleOrder)) {
@@ -118,19 +125,10 @@ exports.createModule = async (req, res) => {
       });
       moduleOrder = lastModule ? lastModule.order + 1 : 1;
     }
+    moduleData.order = moduleOrder;
 
     // Create module
-    const module = await Module.create({
-      courseId: parseInt(courseId, 10),
-      judul,
-      type,
-      contentText: contentText || null, // contentText can still be used for simple descriptions if needed
-      initialContent: initialContentValue, // Save rich text to initialContent
-      pageContent: null, // Explicitly nullify pageContent if initialContent is primary for PAGE type
-      pdfPath: pdfPathValue,
-      videoLink: videoLinkValue,
-      order: moduleOrder
-    });
+    const module = await Module.create(moduleData);
 
     res.status(201).json({
       status: 'success',
@@ -155,17 +153,18 @@ exports.createModule = async (req, res) => {
 
 // Update module
 exports.updateModule = async (req, res) => {
-  console.log('Update Module Request Body:', req.body); // Add this line for debugging
+  console.log('Update Module Request Body:', req.body); 
+  console.log('Update Module Request File:', req.file); // For debugging, to see if 'pdfFile' is still sent by multer
   try {
-    const { moduleId } = req.params; // Changed from id to moduleId for clarity
+    const { moduleId } = req.params; 
     const {
       judul,
       type,
       contentText,
-      // pdfPath might come from req.file or req.body
+      pdfPath, // Expecting this in req.body for PDF_DOCUMENT
       videoLink,
-      order
-      // isPreTest, isPostTest, hasQuiz are not in the Module model
+      order,
+      initialContent // Expecting this in req.body for PAGE type
     } = req.body;
 
     const module = await Module.findByPk(moduleId);
@@ -177,15 +176,13 @@ exports.updateModule = async (req, res) => {
       });
     }
 
-    // Store original type to check if it changed
-    const originalType = module.type;
-
     // Update fields if provided
     if (judul !== undefined) module.judul = judul;
-    
-    let typeChanged = false;
+    if (order !== undefined) module.order = parseInt(order, 10);
+
+    let finalType = module.type;
     if (type !== undefined && module.type !== type) {
-      const validTypes = ['PAGE', 'PRE_TEST_QUIZ', 'POST_TEST_QUIZ'];
+      const validTypes = ['PAGE', 'PRE_TEST_QUIZ', 'POST_TEST_QUIZ', 'PDF_DOCUMENT']; // Added PDF_DOCUMENT
       if (!validTypes.includes(type)) {
         return res.status(400).json({
           status: 'fail',
@@ -193,41 +190,29 @@ exports.updateModule = async (req, res) => {
         });
       }
       module.type = type;
-      typeChanged = true;
+      finalType = type;
     }
     
-    // Handle content fields based on the (potentially new) type
-    const currentModuleType = module.type;
-
-    if (contentText !== undefined) {
-      module.contentText = contentText; // Keep for simple text if provided
-    }
-    // if (req.body.pageContent !== undefined) { // Old: using pageContent
-    //   module.pageContent = req.body.pageContent;
-    // }
-    if (req.body.initialContent !== undefined) { // New: update initialContent for rich text
-      module.initialContent = req.body.initialContent;
-      // If initialContent is being set, pageContent might need to be cleared
-      // if they are mutually exclusive for PAGE type.
-      // For now, just ensure initialContent is saved.
-      // module.pageContent = null; // Consider this if pageContent should be cleared
-    }
-
-
-    // If type changed to one of the new types, or if it's already a new type,
-    // ensure legacy fields are nulled.
-    if (typeChanged || ['PAGE', 'PRE_TEST_QUIZ', 'POST_TEST_QUIZ'].includes(currentModuleType)) {
+    // Handle content fields based on the final type
+    if (finalType === 'PDF_DOCUMENT') {
+      module.pdfPath = pdfPath !== undefined ? pdfPath : module.pdfPath; // Update if provided, else keep existing
+      module.initialContent = null;
+      module.contentText = null;
+      module.pageContent = null; 
+      module.videoLink = null;
+    } else if (finalType === 'PAGE') {
+      module.initialContent = initialContent !== undefined ? initialContent : module.initialContent;
+      module.contentText = contentText !== undefined ? contentText : module.contentText; // Can coexist or be instructions
+      module.pageContent = null; // Explicitly nullify if initialContent is primary
+      module.pdfPath = null;
+      module.videoLink = videoLink !== undefined ? videoLink : module.videoLink; // Legacy
+    } else { // PRE_TEST_QUIZ, POST_TEST_QUIZ
+      module.contentText = contentText !== undefined ? contentText : module.contentText; // Usually for instructions
+      module.initialContent = null;
+      module.pageContent = null; // Quizzes don't use pageContent directly in module
       module.pdfPath = null;
       module.videoLink = null;
     }
-    // Note: If the type was an old type and is NOT changing, and pdfPath/videoLink are sent,
-    // this logic doesn't explicitly handle updating them.
-    // However, the frontend is now only sending new types.
-    // For robustness, if an old type somehow came through and was being updated (not changed),
-    // one might add specific handling here, but it's less critical now.
-
-
-    if (order !== undefined) module.order = parseInt(order, 10);
 
     await module.save();
 

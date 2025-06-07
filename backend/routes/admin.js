@@ -127,7 +127,7 @@ router.post(
   '/courses/:courseId/modules',
   authMiddleware,
   isAdmin,
-  uploadModulePdf.single('pdfFile'), // Middleware for PDF upload
+  // uploadModulePdf.single('pdfFile'), // Removed: PDF URL now sent in body as pdfPath
   moduleAdminController.createModule
 );
 
@@ -144,7 +144,7 @@ router.put(
   '/modules/:moduleId',
   authMiddleware,
   isAdmin,
-  uploadModulePdf.single('pdfFile'), // Middleware for PDF upload
+  // uploadModulePdf.single('pdfFile'), // Removed: PDF URL now sent in body as pdfPath
   moduleAdminController.updateModule
 );
 
@@ -217,6 +217,24 @@ router.delete(
   authMiddleware,
   isAdmin,
   adminController.deleteUser
+);
+
+// --- Content PDF Upload for Rich Text Editor ---
+router.post(
+  '/upload-content-pdf',
+  authMiddleware,
+  isAdmin,
+  uploadModulePdf.single('contentPdfFile'), // Use existing PDF uploader, field name 'contentPdfFile'
+  adminController.uploadContentPdf         // New controller function
+);
+
+// --- Module PDF Upload for PDF_DOCUMENT type ---
+router.post(
+  '/upload-module-pdf', // New dedicated route
+  authMiddleware,
+  isAdmin,
+  uploadModulePdf.single('modulePdfFile'), // Use existing 'uploadModulePdf' multer instance, field name 'modulePdfFile'
+  adminController.uploadModulePdf          // The new controller function we added
 );
 
 module.exports = router;

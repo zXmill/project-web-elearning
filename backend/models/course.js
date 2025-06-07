@@ -3,6 +3,11 @@ module.exports = (sequelize, DataTypes) => {
     id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
     judul: { type: DataTypes.STRING, allowNull: false },
     deskripsi: { type: DataTypes.TEXT, allowNull: true },
+    slug: { // Added slug field
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+    },
     imageSrc: { type: DataTypes.STRING, allowNull: true }, // For course thumbnail
     area: { type: DataTypes.STRING, allowNull: true },     // For filtering by body area
     syaratDanKetentuan: { type: DataTypes.TEXT, allowNull: true },

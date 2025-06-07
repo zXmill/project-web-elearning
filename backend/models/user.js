@@ -35,6 +35,14 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING,
       allowNull: true,
     },
+    affiliasi: { // Added affiliasi
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    noHp: { // Added noHp
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
     passwordResetToken: {
       type: DataTypes.STRING,
       allowNull: true,

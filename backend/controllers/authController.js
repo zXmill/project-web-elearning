@@ -225,13 +225,14 @@ exports.localLogin = async (req, res) => {
 // User Registration
 exports.registerUser = async (req, res) => {
   try {
-    const { namaLengkap, email, password } = req.body;
+    const { namaLengkap, email, password, affiliasi, noHp } = req.body; // Added affiliasi, noHp
 
     // 1. Validate input
-    if (!namaLengkap || !email || !password) {
+    // Make affiliasi and noHp required as per the new requirement
+    if (!namaLengkap || !email || !password || !affiliasi || !noHp) {
       return res.status(400).json({
         status: 'fail',
-        message: 'Nama lengkap, email, dan password harus diisi',
+        message: 'Nama lengkap, email, password, affiliasi, dan nomor HP harus diisi',
       });
     }
 
@@ -251,6 +252,8 @@ exports.registerUser = async (req, res) => {
       namaLengkap,
       email,
       password: password, // Pass plain text password, model will hash it
+      affiliasi,          // Added affiliasi
+      noHp,               // Added noHp
       role: 'user', // Default role
     });
 
@@ -264,6 +267,8 @@ exports.registerUser = async (req, res) => {
           namaLengkap: newUser.namaLengkap,
           email: newUser.email,
           role: newUser.role,
+          affiliasi: newUser.affiliasi, // Added affiliasi to response
+          noHp: newUser.noHp,           // Added noHp to response
         },
       },
     });
@@ -284,7 +289,7 @@ exports.getUserProfile = async (req, res) => {
   try {
     // req.user.id is populated by authMiddleware
     const user = await User.findByPk(req.user.id, {
-      attributes: ['id', 'namaLengkap', 'email', 'role', 'profilePicture', 'googleId', 'createdAt', 'updatedAt'] // Specify fields to return
+      attributes: ['id', 'namaLengkap', 'email', 'role', 'profilePicture', 'googleId', 'createdAt', 'updatedAt', 'affiliasi', 'noHp'] // Specify fields to return, added affiliasi and noHp
     });
 
     if (!user) {
@@ -307,15 +312,26 @@ exports.getUserProfile = async (req, res) => {
   }
 };
 
-// Update Current Logged-In User's Profile
 exports.updateUserProfile = async (req, res) => {
   try {
-    const { namaLengkap } = req.body; // Allow updating only namaLengkap for now
+    const { namaLengkap, affiliasi, noHp } = req.body; // Allow updating affiliasi and noHp as well
 
     if (!namaLengkap || typeof namaLengkap !== 'string' || namaLengkap.trim() === '') {
         return res.status(400).json({
             status: 'fail',
             message: 'Nama lengkap harus diisi dan tidak boleh kosong.'
+        });
+    }
+    if (!affiliasi || typeof affiliasi !== 'string' || affiliasi.trim() === '') {
+        return res.status(400).json({
+            status: 'fail',
+            message: 'Affiliasi harus diisi dan tidak boleh kosong.'
+        });
+    }
+    if (!noHp || typeof noHp !== 'string' || noHp.trim() === '') {
+        return res.status(400).json({
+            status: 'fail',
+            message: 'No HP harus diisi dan tidak boleh kosong.'
         });
     }
 
@@ -329,11 +345,13 @@ exports.updateUserProfile = async (req, res) => {
     }
 
     user.namaLengkap = namaLengkap.trim();
+    user.affiliasi = affiliasi.trim();
+    user.noHp = noHp.trim();
     await user.save();
 
     // Return updated user, excluding sensitive fields
     const updatedUser = await User.findByPk(user.id, {
-        attributes: ['id', 'namaLengkap', 'email', 'role', 'profilePicture', 'createdAt', 'updatedAt']
+        attributes: ['id', 'namaLengkap', 'email', 'role', 'profilePicture', 'createdAt', 'updatedAt', 'affiliasi', 'noHp']
     });
 
     res.status(200).json({
@@ -383,7 +401,7 @@ exports.uploadProfilePicture = async (req, res) => {
 
     // Return updated user, excluding sensitive fields
     const updatedUser = await User.findByPk(user.id, {
-        attributes: ['id', 'namaLengkap', 'email', 'role', 'profilePicture', 'createdAt', 'updatedAt']
+        attributes: ['id', 'namaLengkap', 'email', 'role', 'profilePicture', 'createdAt', 'updatedAt', 'affiliasi', 'noHp'] // Added affiliasi and noHp
     });
 
     res.status(200).json({
