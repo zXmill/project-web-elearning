@@ -1,8 +1,6 @@
 [build]
-  # This command assumes your frontend build script is 'build' in frontend/package.json
-  # and that your backend doesn't have a separate build step for functions initially.
-  # Adjust if your frontend build script is different or if you add a backend build step.
-  command = "cd frontend && npm install && npm run build && cd .."
+  # This command builds the frontend and installs backend dependencies for serverless functions.
+  command = "cd frontend && npm install && npm run build && cd .. && npm install --prefix backend"
   publish = "frontend/build"  # Path to your React app's build directory
   functions = "netlify/functions" # Specifies the directory for Netlify Functions
 
