@@ -1,100 +1,100 @@
 const passport = require('passport');
 const express = require('express');
 const router = express.Router();
-const authController = require('../controllers/authController');
-const multer = require('multer');
-const path = require('path');
-// const fs = require('fs'); // No longer needed for Cloudinary storage
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const { createClient } = require('@supabase/supabase-js');
 
-// Require Cloudinary and its storage engine for Multer
-const cloudinary = require('cloudinary').v2; // Already configured in authController.js
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY; // Use service role key for server-side
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Ensure Cloudinary is configured (it's done in authController, but good to be aware)
-if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-  console.warn('Cloudinary environment variables might not be fully set in routes/auth.js context. Ensure they are loaded for multer-storage-cloudinary if it re-reads them.');
-}
+const { JWT_SECRET, FRONTEND_URL } = process.env;
 
-// Multer setup for Cloudinary storage
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary, // The configured Cloudinary instance
-  params: async (req, file) => {
-    // Determine the folder and filename for Cloudinary
-    // You can customize this as needed
-    let folder = 'profile-pictures';
-    if (process.env.NODE_ENV === 'development') {
-      folder = `dev/${folder}`;
-    } else if (process.env.NODE_ENV === 'staging') { // Example for staging
-      folder = `staging/${folder}`;
+router.post('/register', async (req, res) => {
+  try {
+    const { email, password, namaLengkap } = req.body;
+
+    // Check if user exists
+    const { data: existingUser, error: fetchError } = await supabase
+      .from('Users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      // PGRST116 = No rows found, which is okay here
+      console.error('Supabase fetch error:', fetchError);
+      return res.status(500).json({ message: 'Internal server error' });
     }
-    
-    const fileExtension = path.extname(file.originalname).substring(1);
-    const publicId = `user-${req.user.id}-${Date.now()}`;
 
-    return {
-      folder: folder,
-      public_id: publicId,
-      format: fileExtension, // Or let Cloudinary auto-detect
-      // transformation: [{ width: 500, height: 500, crop: 'limit' }] // Optional: server-side transformations
-    };
-  },
-});
-
-const upload = multer({
-  storage: storage, // Use Cloudinary storage
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit (Cloudinary might have its own limits too)
-  fileFilter: function (req, file, cb) {
-    const allowedTypes = /jpeg|jpg|png/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    if (extname && mimetype) {
-      return cb(null, true);
-    } else {
-      cb(new Error('Only JPEG and PNG images are allowed'));
+    if (existingUser) {
+      return res.status(409).json({ message: 'Email already registered' });
     }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Insert new user
+    const { data: newUser, error: insertError } = await supabase
+      .from('Users')
+      .insert({
+        email,
+        password: hashedPassword,
+        namaLengkap,
+        role: 'user',
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Supabase insert error:', insertError);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+
+    res.status(201).json({ message: 'User registered successfully', user: newUser });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-// Google OAuth
-router.get(
-  '/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
-);
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-router.get(
-  '/google/callback',
-  passport.authenticate('google', { session: false }),
-  authController.googleLogin
-);
+    // Fetch user by email
+    const { data: user, error: fetchError } = await supabase
+      .from('Users')
+      .select('*')
+      .eq('email', email)
+      .single();
 
-// Local Auth
-router.post('/login', authController.localLogin);
-router.post('/register', authController.registerUser); // New route for registration
+    if (fetchError) {
+      console.error('Supabase fetch error:', fetchError);
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
 
-// Protected Route for User Profile
-router.get(
-  '/profile', // Changed from /me
-  authController.protect, // This is authMiddleware
-  authController.getUserProfile // Changed from getCurrentUser
-);
+    // Compare password
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return res.status(401).json({ message: 'Invalid email or password' });
+    }
 
-// Protected Route to Update User Profile
-router.put(
-  '/profile',
-  authController.protect, // This is authMiddleware
-  authController.updateUserProfile
-);
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: '1h' }
+    );
 
-// New route for profile picture upload
-router.post(
-  '/profile/picture',
-  authController.protect,
-  upload.single('profilePicture'),
-  authController.uploadProfilePicture
-);
+    res.json({ message: 'Login successful', token });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
 
-// Password Reset Routes
-router.post('/request-password-reset', authController.requestPasswordReset);
-router.post('/reset-password/:token', authController.resetPassword);
+// Google OAuth routes would need to be adapted similarly, possibly using Supabase Auth or custom logic
 
 module.exports = router;

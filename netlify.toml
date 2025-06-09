@@ -7,9 +7,19 @@
   # Directory where your Netlify Functions are located
   functions = "netlify/functions"
 
+[functions]
+  external_node_modules = ["express"]
+  node_bundler = "esbuild"
+
 # Redirect rule for Single Page Applications (SPA)
 # This ensures that direct navigation to routes like /login or /register
 # are handled by your index.html, allowing client-side routing to work.
+[[redirects]]
+  force = true
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
