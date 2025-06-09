@@ -1,9 +1,9 @@
-  import React, { useState, useEffect } from 'react';
-  import api from '../../services/api';
-  import { PlusIcon, PencilIcon, TrashIcon, ArrowUpIcon, ArrowDownIcon, BookOpenIcon } from '@heroicons/react/24/outline'; // Added BookOpenIcon
-  import RichTextEditor from './RichTextEditor';
-  import QuestionManagement from './QuestionManagement'; // Import QuestionManagement
-  
+import React, { useState, useEffect } from 'react';
+import api from '../../services/api';
+import { PlusIcon, PencilIcon, TrashIcon, ArrowUpIcon, ArrowDownIcon, BookOpenIcon } from '@heroicons/react/24/outline'; // Added BookOpenIcon
+import RichTextEditor from './RichTextEditor';
+import QuestionManagement from './QuestionManagement'; // Import QuestionManagement
+
 
 const ModuleManagement = ({ courseId }) => {
   const [modules, setModules] = useState([]);
@@ -62,9 +62,9 @@ const ModuleManagement = ({ courseId }) => {
       } else {
         // For creating new modules, ensure initialContent is handled if type is PAGE
         if (payload.type === 'PAGE' && payload.initialContent === undefined && payload.pageContent !== undefined) {
-            // This case might occur if resetForm() sets pageContent and it's not yet moved to initialContent
-            payload.initialContent = payload.pageContent;
-            payload.pageContent = null;
+          // This case might occur if resetForm() sets pageContent and it's not yet moved to initialContent
+          payload.initialContent = payload.pageContent;
+          payload.pageContent = null;
         }
         await api.post(`/admin/courses/${courseId}/modules`, payload); // Send modified payload
       }
@@ -96,8 +96,8 @@ const ModuleManagement = ({ courseId }) => {
       judul: module.judul || '',
       type: module.type || 'PAGE',
       contentText: module.contentText || '',
-      pdfPath: module.pdfPath || '', 
-      videoLink: module.videoLink || '', 
+      pdfPath: module.pdfPath || '',
+      videoLink: module.videoLink || '',
       pageContent: editorContent, // This will be used by RichTextEditor if type is PAGE
       order: module.order || 0,
     });
@@ -123,7 +123,7 @@ const ModuleManagement = ({ courseId }) => {
 
       const newModules = [...modules];
       const module = newModules[moduleIndex];
-      
+
       if (direction === 'up' && moduleIndex > 0) {
         const prevModule = newModules[moduleIndex - 1];
         newModules[moduleIndex - 1] = module;
@@ -137,8 +137,8 @@ const ModuleManagement = ({ courseId }) => {
       }
 
       // Prepare data in the format expected by the backend: [{id, order}, ...]
-      const moduleOrders = newModules.map((module, index) => ({ 
-        id: module.id, 
+      const moduleOrders = newModules.map((module, index) => ({
+        id: module.id,
         order: index // Use the array index as the new order
       }));
 
@@ -179,7 +179,7 @@ const ModuleManagement = ({ courseId }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between sm:items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manajemen Modul</h2>
         <button
           onClick={openCreateModal}
@@ -246,12 +246,11 @@ const ModuleManagement = ({ courseId }) => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div>
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      module.type === 'PAGE' ? 'bg-blue-100 text-blue-800' :
-                      module.type === 'PRE_TEST_QUIZ' ? 'bg-yellow-100 text-yellow-800' :
-                      module.type === 'POST_TEST_QUIZ' ? 'bg-orange-100 text-orange-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${module.type === 'PAGE' ? 'bg-blue-100 text-blue-800' :
+                        module.type === 'PRE_TEST_QUIZ' ? 'bg-yellow-100 text-yellow-800' :
+                          module.type === 'POST_TEST_QUIZ' ? 'bg-orange-100 text-orange-800' :
+                            'bg-gray-100 text-gray-800'
+                      }`}>
                       {module.type === 'PAGE' && 'Page'}
                       {module.type === 'PRE_TEST_QUIZ' && 'Pre-Test Quiz'}
                       {module.type === 'POST_TEST_QUIZ' && 'Post-Test Quiz'}
@@ -296,7 +295,7 @@ const ModuleManagement = ({ courseId }) => {
                     type="text"
                     required
                     value={formData.judul}
-                    onChange={(e) => setFormData({...formData, judul: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, judul: e.target.value })}
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
@@ -306,7 +305,7 @@ const ModuleManagement = ({ courseId }) => {
                   <select
                     required
                     value={formData.type}
-                    onChange={(e) => setFormData({...formData, type: e.target.value, pageContent: null, contentText: '', pdfPath: '', videoLink: ''})}
+                    onChange={(e) => setFormData({ ...formData, type: e.target.value, pageContent: null, contentText: '', pdfPath: '', videoLink: '' })}
                     className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                   >
                     <option value="PAGE">Page (Text, Video, PDF, etc.)</option>

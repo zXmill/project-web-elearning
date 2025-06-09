@@ -188,7 +188,7 @@ const CourseManagement = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between sm:items-center">
         <h2 className="text-2xl font-bold text-gray-900">Manajemen Kursus</h2>
         <button
           onClick={openCreateModal}

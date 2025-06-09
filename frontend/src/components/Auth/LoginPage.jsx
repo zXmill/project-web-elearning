@@ -12,7 +12,7 @@ export default function LoginPage() {
   const handleGoogleLogin = () => {
     // This should also ideally use the backend base URL if it's absolute
     // For now, assuming proxy handles /auth/google if it's a backend route
-    window.location.href = 'http://localhost:3001/api/auth/google'; // Make absolute if not using proxy for this
+    window.location.href = 'https://e-learning-unesa.netlify.app/.netlify/functions/auth/google/callback'; // Make absolute if not using proxy for this
   };
 
   // Handle Local Login - Refactored to use AuthContext's login

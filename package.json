@@ -29,7 +29,7 @@
     "dev:frontend": "cd frontend && npm start",
     "build:frontend": "cd frontend && npm install && npm run build",
     "start:backend": "cd backend && npm start", 
-    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install && cd ..",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install && cd .. && npm run dev",
     "heroku-postbuild": "npm run install:all && npm run build:frontend"
   },
   "engines": {

@@ -4,7 +4,7 @@ import { GoogleIcon } from '../Common/Icons';
 // Added className prop to allow for additional styling from parent
 const GoogleButton = ({ className = '' }) => { 
   // Reverted to original OAuth URL
-  const googleAuthUrl = 'http://localhost:3001/api/auth/google';
+  const googleAuthUrl = 'https://e-learning-unesa.netlify.app/.netlify/functions/auth/google/callback';
 
   return (
     <a

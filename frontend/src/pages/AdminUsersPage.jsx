@@ -218,9 +218,9 @@ const AdminUsersPage = () => {
 
   return (
     <div className="p-4 md:p-6 bg-white rounded-lg shadow-md">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between sm:items-center mb-6">
         <h1 className="text-2xl md:text-3xl font-semibold text-gray-800">Manage Users</h1>
-        <div className="flex space-x-3">
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={() => { setIsAddUserModalOpen(true); setFormError(''); }}
             className="text-teraplus-brand-blue-dark bg-white border border-teraplus-brand-blue-dark hover:bg-teraplus-primary-hover font-semibold py-2 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-300 ease-in-out flex items-center"
