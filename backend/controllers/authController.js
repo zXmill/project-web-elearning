@@ -5,6 +5,20 @@ const { User } = require('../models');
 const { Op } = require('sequelize'); // Import Op for query operators
 const sendEmail = require('../utils/email'); // Import the email utility
 const { authMiddleware } = require('../middleware/auth');
+const cloudinary = require('cloudinary').v2;
+
+// Cloudinary configuration - ensure environment variables are set in Netlify
+// CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
+if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+} else {
+  console.warn('Cloudinary environment variables are not fully set. File uploads will likely fail.');
+}
 
 // Generate JWT Token
 const signToken = (id, role, email) => {
@@ -392,7 +406,7 @@ exports.updateUserProfile = async (req, res) => {
   }
 };
 
-// Upload Profile Picture
+// Upload Profile Picture (Modified for Cloudinary)
 exports.uploadProfilePicture = async (req, res) => {
   try {
     if (!req.file) {
@@ -402,24 +416,31 @@ exports.uploadProfilePicture = async (req, res) => {
       });
     }
 
+    // req.file.path will contain the Cloudinary URL if using multer-storage-cloudinary
+    if (!req.file.path) {
+        console.error('Cloudinary upload failed, file path not available in req.file.path');
+        return res.status(500).json({
+            status: 'error',
+            message: 'Gagal mengunggah foto profil ke cloud storage.'
+        });
+    }
+
     const user = await User.findByPk(req.user.id);
     if (!user) {
+      // If user not found, consider deleting the uploaded image from Cloudinary to prevent orphans
+      // For example: await cloudinary.uploader.destroy(req.file.filename); (filename is public_id)
       return res.status(404).json({
         status: 'fail',
         message: 'Pengguna tidak ditemukan.'
       });
     }
 
-    // Construct the path to be stored. Assuming 'uploads' is served statically at the root.
-    // e.g., if file is in backend/uploads/profile-pictures/user-id-timestamp.png
-    // and backend/uploads is served as /uploads, then path is /uploads/profile-pictures/filename
-    const profilePicturePath = `/uploads/profile-pictures/${req.file.filename}`;
-    user.profilePicture = profilePicturePath;
+    // Store the Cloudinary URL (or secure_url)
+    user.profilePicture = req.file.path; // This should be the URL from Cloudinary
     await user.save({ loggingContext: 'userProfileChange' });
 
-    // Return updated user, excluding sensitive fields
     const updatedUser = await User.findByPk(user.id, {
-        attributes: ['id', 'namaLengkap', 'email', 'role', 'profilePicture', 'createdAt', 'updatedAt', 'affiliasi', 'noHp'] // Added affiliasi and noHp
+        attributes: ['id', 'namaLengkap', 'email', 'role', 'profilePicture', 'createdAt', 'updatedAt', 'affiliasi', 'noHp']
     });
 
     res.status(200).json({
@@ -430,8 +451,12 @@ exports.uploadProfilePicture = async (req, res) => {
 
   } catch (error) {
     console.error('Error uploading profile picture:', error);
-    // Multer might throw errors if fileFilter fails, or other fs errors
-    if (error.message === 'Only JPEG and PNG images are allowed') {
+    // If an error occurs after upload and req.file.path exists,
+    // you might want to delete the image from Cloudinary.
+    // Example: if (req.file && req.file.filename) { await cloudinary.uploader.destroy(req.file.filename); }
+    
+    // Check for specific multer or Cloudinary errors if possible
+    if (error.message && error.message.includes('Only JPEG and PNG images are allowed')) { // Example, depends on multer setup
         return res.status(400).json({
             status: 'fail',
             message: error.message

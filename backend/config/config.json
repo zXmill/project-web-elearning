@@ -1,7 +1,7 @@
 {
   "development": {
     "dialect": "sqlite",
-    "storage": "data/elearning.sqlite",
+    "storage": "./data/elearning.sqlite",
     "logging": false
   },
   "test": {
@@ -10,8 +10,14 @@
     "logging": false
   },
   "production": {
-    "dialect": "sqlite",
-    "storage": "data/elearning_prod.sqlite",
+    "use_env_variable": "DATABASE_URL",
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    },
     "logging": false
   }
 }

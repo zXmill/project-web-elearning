@@ -1,11 +1,51 @@
 import axios from 'axios';
 
+// Determine the base URL based on the environment
+// For Netlify, API calls go to /.netlify/functions/<function-name>
+// For local development with `netlify dev`, it's the same relative path.
+// The `REACT_APP_API_URL` might still be useful if you have a staging environment
+// not on Netlify or for other specific overrides, but the default should be Netlify paths.
+
+let apiBase;
+let staticAssetBase;
+
+if (process.env.NODE_ENV === 'production') {
+  // In production on Netlify, all API calls are relative to the root.
+  // Example: '/.netlify/functions/auth' for the auth function.
+  // We set a common prefix, and specific function names will be part of the request path.
+  apiBase = '/.netlify/functions'; 
+  // Static assets like profile pictures are now on Cloudinary.
+  // If other static assets are served from the backend (less common with Netlify),
+  // this would need to point to the deployed site URL or a CDN.
+  // For now, assuming Cloudinary handles user-uploaded assets.
+  staticAssetBase = ''; // Or your site's root URL if needed for other assets.
+} else {
+  // For local development using `netlify dev` or a local server proxying to functions
+  apiBase = '/.netlify/functions'; // `netlify dev` proxies this to your functions
+  // staticAssetBase = 'http://localhost:3001'; // If you still run a local backend for some assets
+                                            // But for Cloudinary assets, this isn't used.
+  staticAssetBase = ''; // Or your local dev server root if needed.
+}
+
+// Override with REACT_APP_API_URL if it's explicitly set (e.g., for a different staging)
+if (process.env.REACT_APP_API_URL) {
+  apiBase = process.env.REACT_APP_API_URL;
+}
+// REACT_APP_STATIC_ASSET_URL could be used for an explicit static asset host if needed.
+// if (process.env.REACT_APP_STATIC_ASSET_URL) {
+//   staticAssetBase = process.env.REACT_APP_STATIC_ASSET_URL;
+// }
+
+
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api', 
-  withCredentials: true                  
+  baseURL: apiBase, // e.g., '/.netlify/functions'
+  withCredentials: true // Be cautious with this for cross-origin Netlify functions if not configured properly
 });
 
-export const BACKEND_URL = 'http://localhost:3001'; // Export the base URL for static assets
+// BACKEND_URL is now less relevant for Cloudinary-hosted profile pictures.
+// It might be used if you have other static assets served from your backend's public folder,
+// but with Netlify, those would typically be in your frontend's publish directory or a CDN.
+export const BACKEND_URL = staticAssetBase; 
 
 // Add a request interceptor to include the token in headers
 api.interceptors.request.use(

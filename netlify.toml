@@ -1,0 +1,20 @@
+[build]
+  # This command assumes your frontend build script is 'build' in frontend/package.json
+  # and that your backend doesn't have a separate build step for functions initially.
+  # Adjust if your frontend build script is different or if you add a backend build step.
+  command = "cd frontend && npm install && npm run build && cd .."
+  publish = "frontend/build"  # Path to your React app's build directory
+  functions = "netlify/functions" # Specifies the directory for Netlify Functions
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200 # Use 200 for API calls that should be transparently proxied
+
+# Optional: Environment variables can be set here for local dev (Netlify Dev)
+# but should primarily be set in the Netlify UI for deployed environments.
+# [context.development.environment]
+#   DATABASE_URL = "your_local_dev_database_url_if_not_using_production_one_for_dev"
+#   JWT_SECRET = "your_development_jwt_secret"
+
+# It's generally better to set sensitive variables in the Netlify UI.

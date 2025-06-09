@@ -4,26 +4,45 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+// const fs = require('fs'); // No longer needed for Cloudinary storage
 
-// Multer setup for file storage
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, '../public/uploads/profile-pictures');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+// Require Cloudinary and its storage engine for Multer
+const cloudinary = require('cloudinary').v2; // Already configured in authController.js
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+
+// Ensure Cloudinary is configured (it's done in authController, but good to be aware)
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  console.warn('Cloudinary environment variables might not be fully set in routes/auth.js context. Ensure they are loaded for multer-storage-cloudinary if it re-reads them.');
+}
+
+// Multer setup for Cloudinary storage
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary, // The configured Cloudinary instance
+  params: async (req, file) => {
+    // Determine the folder and filename for Cloudinary
+    // You can customize this as needed
+    let folder = 'profile-pictures';
+    if (process.env.NODE_ENV === 'development') {
+      folder = `dev/${folder}`;
+    } else if (process.env.NODE_ENV === 'staging') { // Example for staging
+      folder = `staging/${folder}`;
     }
-    cb(null, uploadDir);
+    
+    const fileExtension = path.extname(file.originalname).substring(1);
+    const publicId = `user-${req.user.id}-${Date.now()}`;
+
+    return {
+      folder: folder,
+      public_id: publicId,
+      format: fileExtension, // Or let Cloudinary auto-detect
+      // transformation: [{ width: 500, height: 500, crop: 'limit' }] // Optional: server-side transformations
+    };
   },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    cb(null, req.user.id + '-' + Date.now() + ext);
-  }
 });
 
 const upload = multer({
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  storage: storage, // Use Cloudinary storage
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit (Cloudinary might have its own limits too)
   fileFilter: function (req, file, cb) {
     const allowedTypes = /jpeg|jpg|png/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
