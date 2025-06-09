@@ -1,21 +1,16 @@
+# Netlify build configuration
 [build]
-  # This command builds the frontend and installs backend dependencies for serverless functions.
-  command = "cd frontend && npm install && npm run build && cd .. && npm install --prefix backend"
-  publish = "frontend/build"  # Path to your React app's build directory
-  functions = "netlify/functions" # Specifies the directory for Netlify Functions
+  # This should be the command to build your frontend (e.g., React app)
+  command = "npm run build" # Or "yarn build", "CI=false npm run build", etc.
+  # This should be the directory where your built frontend assets are located
+  publish = "frontend/build"  # Or "build", "dist", etc. - verify your project setup
+  # Directory where your Netlify Functions are located
+  functions = "netlify/functions"
 
-[functions]
-  included_files = ["backend/**"]
-
+# Redirect rule for Single Page Applications (SPA)
+# This ensures that direct navigation to routes like /login or /register
+# are handled by your index.html, allowing client-side routing to work.
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200 # Use 200 for API calls that should be transparently proxied
-
-# Optional: Environment variables can be set here for local dev (Netlify Dev)
-# but should primarily be set in the Netlify UI for deployed environments.
-# [context.development.environment]
-#   DATABASE_URL = "your_local_dev_database_url_if_not_using_production_one_for_dev"
-#   JWT_SECRET = "your_development_jwt_secret"
-
-# It's generally better to set sensitive variables in the Netlify UI.
+  from = "/*"
+  to = "/index.html"
+  status = 200
