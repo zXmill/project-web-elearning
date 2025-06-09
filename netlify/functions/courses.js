@@ -2,15 +2,17 @@ const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
 const passport = require('passport'); // If course routes are protected
+const path = require('path');
 
 // Adjust the path to your actual course routes and configurations
-const courseRoutes = require('../../backend/routes/courseRoutes'); // Main course routes
+const courseRoutes = require(path.resolve(__dirname, '..', '..', 'backend', 'routes', 'courseRoutes')); // Main course routes
 // If you have another course file like 'course.js' for different functionalities,
 // you might need to merge them or create a separate function if they are truly distinct.
-// const otherCourseRoutes = require('../../backend/routes/course');
-const sequelize = require('../../backend/config/database'); // To initialize DB connection
+// const otherCourseRoutes = require(path.resolve(__dirname, '..', '..', 'backend', 'routes', 'course'));
+const sequelize = require(path.resolve(__dirname, '..', '..', 'backend', 'config', 'database')); // To initialize DB connection
 // If you have a central passport configuration, require it here
-// require('../../backend/middleware/passport')(passport); // Example path
+// const passportConfig = require(path.resolve(__dirname, '..', '..', 'backend', 'middleware', 'passport'));
+// if (passportConfig) passportConfig(passport);
 
 const app = express();
 

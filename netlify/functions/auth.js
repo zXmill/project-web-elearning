@@ -2,12 +2,14 @@ const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
 const passport = require('passport'); // Assuming passport is used and configured
+const path = require('path');
 
 // Adjust the path to your actual auth routes and configurations
-const authRoutes = require('../../backend/routes/auth');
-const sequelize = require('../../backend/config/database'); // To initialize DB connection
+const authRoutes = require(path.resolve(__dirname, '..', '..', 'backend', 'routes', 'auth'));
+const sequelize = require(path.resolve(__dirname, '..', '..', 'backend', 'config', 'database')); // To initialize DB connection
 // If you have a central passport configuration (e.g., backend/middleware/passport.js), require it here
-// require('../../backend/middleware/passport')(passport); // Example path
+// const passportConfig = require(path.resolve(__dirname, '..', '..', 'backend', 'middleware', 'passport'));
+// if (passportConfig) passportConfig(passport);
 
 const app = express();
 

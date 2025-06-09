@@ -2,12 +2,14 @@ const express = require('express');
 const serverless = require('serverless-http');
 const cors = require('cors');
 const passport = require('passport'); // Admin routes are typically protected
+const path = require('path');
 
 // Adjust the path to your actual admin routes and configurations
-const adminRoutes = require('../../backend/routes/admin');
-const sequelize = require('../../backend/config/database'); // To initialize DB connection
+const adminRoutes = require(path.resolve(__dirname, '..', '..', 'backend', 'routes', 'admin'));
+const sequelize = require(path.resolve(__dirname, '..', '..', 'backend', 'config', 'database')); // To initialize DB connection
 // If you have a central passport configuration, require it here
-// require('../../backend/middleware/passport')(passport); // Example path
+// const passportConfig = require(path.resolve(__dirname, '..', '..', 'backend', 'middleware', 'passport'));
+// if (passportConfig) passportConfig(passport);
 // Also, ensure your admin-specific authentication middleware is correctly referenced and used within adminRoutes.
 
 const app = express();
