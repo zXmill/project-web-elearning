@@ -4,6 +4,9 @@
   publish = "frontend/build"  # Path to your React app's build directory
   functions = "netlify/functions" # Specifies the directory for Netlify Functions
 
+[functions]
+  included_files = ["backend/**"]
+
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
