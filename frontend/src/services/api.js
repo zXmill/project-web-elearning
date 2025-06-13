@@ -1,11 +1,22 @@
 import axios from 'axios';
 
+// For baseURL of API calls (e.g., http://localhost:3001/api or https://your-backend.com/api)
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+
+// For the plain backend URL, often used for static assets if served from backend
+// (e.g., http://localhost:3001 or https://your-backend.com)
+// If your static assets are not served from the backend, you might not need this,
+// or it might point to a different URL (like an S3 bucket URL directly).
+// For now, let's assume it's related to the API_BASE_URL.
+const BACKEND_BASE_URL = process.env.REACT_APP_BACKEND_BASE_URL || (API_BASE_URL.endsWith('/api') ? API_BASE_URL.slice(0, -4) : API_BASE_URL);
+
+
 const api = axios.create({
-  baseURL: 'http://localhost:3001/api', 
-  withCredentials: true                  
+  baseURL: API_BASE_URL,
+  withCredentials: true
 });
 
-export const BACKEND_URL = 'http://localhost:3001'; // Export the base URL for static assets
+export const BACKEND_URL = BACKEND_BASE_URL; // Export the base URL
 
 // Add a request interceptor to include the token in headers
 api.interceptors.request.use(
