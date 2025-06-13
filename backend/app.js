@@ -4,8 +4,9 @@ const cors = require('cors'); // Import cors
 const app = express();
 const adminRoutes = require('./routes/admin'); // Corrected path to adminRoutes
 const courseRoutes = require('./routes/courseRoutes'); // Assuming you have course routes for users
-const authRoutes = require('./routes/authRoutes'); // Assuming you have auth routes
-const userRoutes = require('./routes/userRoutes'); // Assuming general user routes
+const authRoutes = require('./routes/auth'); // Assuming you have auth routes
+const userRoutes = require('./routes/admin'); // Assuming general user routes
+
 
 // CORS Configuration
 const isProduction = process.env.NODE_ENV === 'production';

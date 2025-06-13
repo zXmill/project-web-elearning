@@ -1,24 +1,19 @@
 # Netlify build configuration
 [build]
-  # This should be the command to build your frontend (e.g., React app)
-  command = "npm run build" # Or "yarn build", "CI=false npm run build", etc.
-  # This should be the directory where your built frontend assets are located
-  publish = "frontend/build"  # Or "build", "dist", etc. - verify your project setup
-  # Directory where your Netlify Functions are located
+  base = ""
+  command = "echo Building Functions"
+  publish = "frontend/build"
   functions = "netlify/functions"
 
 [functions]
-  external_node_modules = ["express"]
+  external_node_modules = ["express", "pg-hstore", "bcrypt", "@supabase/supabase-js", "passport", "jsonwebtoken"]
   node_bundler = "esbuild"
 
-# Redirect rule for Single Page Applications (SPA)
-# This ensures that direct navigation to routes like /login or /register
-# are handled by your index.html, allowing client-side routing to work.
 [[redirects]]
-  force = true
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/*"
