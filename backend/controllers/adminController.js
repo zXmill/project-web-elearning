@@ -2,6 +2,7 @@
 const { User, Course, Setting, Enrollment } = require('../models'); // Import User, Course, Setting, and Enrollment models
 const bcrypt = require('bcryptjs'); // For hashing password if updated
 const xlsx = require('xlsx'); // For parsing Excel files
+const { uploadToS3 } = require('../utils/s3Service'); // Import S3 upload utility
 
 exports.getDashboardSummary = async (req, res) => {
   try {
@@ -101,18 +102,13 @@ exports.uploadContentPdf = async (req, res) => {
   }
 
   try {
-    // The file is uploaded by multer to req.file
-    // The path stored in req.file.path is the absolute path on the server.
-    // We need to construct a public URL.
-    // Assuming 'public' is served statically and 'uploads/modules' is within 'public'.
-    const publicUrl = `/uploads/modules/${req.file.filename}`;
-
+    const s3UploadResult = await uploadToS3(req.file, 'content-pdfs');
     res.status(200).json({
       status: 'success',
       message: 'File PDF berhasil diunggah.',
       data: {
-        url: publicUrl, // URL to access the file
-        filename: req.file.filename,
+        url: s3UploadResult.url, // URL to access the file from S3
+        filename: req.file.originalname, // Original filename might be more user-friendly
       },
     });
   } catch (error) {
@@ -134,17 +130,13 @@ exports.uploadModulePdf = async (req, res) => {
   }
 
   try {
-    // req.file is populated by multer.
-    // We need to return a public URL.
-    // Assuming 'public' is served statically and 'uploads/modules/' is the target (consistent with admin.js multer setup).
-    const publicUrl = `/uploads/modules/${req.file.filename}`;
-
+    const s3UploadResult = await uploadToS3(req.file, 'module-pdfs');
     res.status(200).json({
       status: 'success',
       message: 'File PDF modul berhasil diunggah.',
       data: {
-        url: publicUrl, // URL to access the file (will be stored in module.pdfPath)
-        filename: req.file.filename,
+        url: s3UploadResult.url, // URL to access the file from S3
+        filename: req.file.originalname, // Original filename
       },
     });
   } catch (error) {

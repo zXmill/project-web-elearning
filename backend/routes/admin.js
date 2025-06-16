@@ -6,67 +6,7 @@ const adminController = require('../controllers/adminController');
 const courseAdminController = require('../controllers/courseAdminController'); // Import courseAdminController
 const moduleAdminController = require('../controllers/moduleAdminController'); // Import moduleAdminController
 const questionAdminController = require('../controllers/questionAdminController'); // Import questionAdminController
-
-// Middleware for file uploads (multer)
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs'); // Import fs module for directory creation
-
-// Configure Multer for course image uploads
-const courseImageStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    // Construct path relative to this file's location (backend/routes/admin.js)
-    // Go up one level to 'backend/', then into 'public/uploads/courses/'
-    const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'courses');
-    
-    // Ensure the directory exists, create it if it doesn't
-    fs.mkdirSync(uploadPath, { recursive: true });
-    
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-const uploadCourseImage = multer({ storage: courseImageStorage });
-
-// Configure Multer for module PDF uploads
-const modulePdfStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'modules');
-    fs.mkdirSync(uploadPath, { recursive: true });
-    cb(null, uploadPath);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-const uploadModulePdf = multer({ storage: modulePdfStorage });
-
-// Configure Multer for Excel file uploads (for bulk user creation)
-const excelFileStorage = multer.diskStorage({
-  // For simplicity, store in a temporary location or handle in memory if preferred
-  // destination: (req, file, cb) => {
-  //   const uploadPath = path.join(__dirname, '..', 'temp', 'uploads'); // Example: temp folder
-  //   fs.mkdirSync(uploadPath, { recursive: true });
-  //   cb(null, uploadPath);
-  // },
-  // filename: (req, file, cb) => {
-  //   cb(null, `${Date.now()}-${file.originalname}`);
-  // }
-  // Using memory storage for now, as we'll process it immediately
-});
-const uploadExcelFile = multer({ 
-  storage: multer.memoryStorage(), // Use memoryStorage to handle file buffer directly
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'text/csv'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only Excel (.xlsx, .xls) and CSV (.csv) files are allowed.'), false);
-    }
-  }
-});
+const { upload } = require('../utils/s3Service'); // Import S3 upload middleware
 
 
 // All routes in this file will first be protected by authMiddleware, then by isAdmin
@@ -123,7 +63,7 @@ router.post(
   '/users/bulk-create', // Changed route to match frontend
   authMiddleware,
   isAdmin,
-  uploadExcelFile.single('userBulkFile'), // 'userBulkFile' will be the field name in FormData
+  upload.single('userBulkFile'), // Use S3 upload middleware
   adminController.bulkCreateUsers 
 );
 
@@ -141,7 +81,7 @@ router.post(
   '/courses',
   authMiddleware,
   isAdmin,
-  uploadCourseImage.single('imageFile'), // Middleware for image upload
+  upload.single('imageFile'), // Use S3 upload middleware
   courseAdminController.createCourse    // Use courseAdminController
 );
 
@@ -158,7 +98,7 @@ router.put(
   '/courses/:id',
   authMiddleware,
   isAdmin,
-  uploadCourseImage.single('imageFile'), // Middleware for image upload
+  upload.single('imageFile'), // Use S3 upload middleware
   courseAdminController.updateCourse    // Use courseAdminController
 );
 
@@ -281,7 +221,7 @@ router.post(
   '/upload-content-pdf',
   authMiddleware,
   isAdmin,
-  uploadModulePdf.single('contentPdfFile'), // Use existing PDF uploader, field name 'contentPdfFile'
+  upload.single('contentPdfFile'), // Use S3 upload middleware
   adminController.uploadContentPdf         // New controller function
 );
 
@@ -290,7 +230,7 @@ router.post(
   '/upload-module-pdf', // New dedicated route
   authMiddleware,
   isAdmin,
-  uploadModulePdf.single('modulePdfFile'), // Use existing 'uploadModulePdf' multer instance, field name 'modulePdfFile'
+  upload.single('modulePdfFile'), // Use S3 upload middleware
   adminController.uploadModulePdf          // The new controller function we added
 );
 

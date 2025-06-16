@@ -1,0 +1,56 @@
+functionsDirectory = "E:\\project_elearning\\e-learning_unesa\\netlify\\functions"
+functionsDirectoryOrigin = "config-v1"
+redirectsOrigin = "config"
+plugins = []
+headers = []
+
+[build]
+publish = "E:\\project_elearning\\e-learning_unesa\\frontend\\build"
+publishOrigin = "config"
+commandOrigin = "config"
+command = "echo Building Functions"
+functions = "E:\\project_elearning\\e-learning_unesa\\netlify\\functions"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[functions]
+
+[functions."*"]
+node_bundler = "esbuild"
+external_node_modules = ["express", "pg-hstore", "bcrypt", "@supabase/supabase-js", "passport", "jsonwebtoken"]
+
+[[redirects]]
+from = "/api/*"
+to = "/.netlify/functions/api/:splat"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]

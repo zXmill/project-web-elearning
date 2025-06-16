@@ -10,8 +10,18 @@
     "logging": false
   },
   "production": {
-    "dialect": "sqlite",
-    "storage": "data/elearning_prod.sqlite",
+    "username": "YOUR_SUPABASE_USER",
+    "password": "YOUR_SUPABASE_PASSWORD",
+    "database": "YOUR_SUPABASE_DB_NAME",
+    "host": "YOUR_SUPABASE_HOST",
+    "port": 5432,
+    "dialect": "postgres",
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    },
     "logging": false
   }
 }

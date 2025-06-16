@@ -1,4 +1,5 @@
 const { Course, Module, Question, Enrollment, UserProgress, sequelize } = require('../models'); // Added Enrollment, UserProgress, sequelize
+const { uploadToS3 } = require('../utils/s3Service'); // Import S3 upload utility
 
 // Helper function to generate a slug
 const generateSlug = (title) => {
@@ -108,8 +109,8 @@ exports.createCourse = async (req, res) => {
 
     let imageSrcPath = req.body.imageSrc; // Allow manual URL input as fallback
     if (req.file) {
-      // Construct path relative to the 'public' directory
-      imageSrcPath = `/uploads/courses/${req.file.filename}`;
+      const s3UploadResult = await uploadToS3(req.file, 'course-images');
+      imageSrcPath = s3UploadResult.url; // Store the S3 URL
     }
 
     // Validation
@@ -193,7 +194,8 @@ exports.updateCourse = async (req, res) => {
     if (deskripsi !== undefined) course.deskripsi = deskripsi;
     
     if (req.file) {
-      course.imageSrc = `/uploads/courses/${req.file.filename}`;
+      const s3UploadResult = await uploadToS3(req.file, 'course-images');
+      course.imageSrc = s3UploadResult.url; // Store the S3 URL
     } else if (req.body.imageSrc !== undefined) { // Allows clearing or setting a manual URL
       course.imageSrc = req.body.imageSrc;
     }

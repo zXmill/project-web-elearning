@@ -1,6 +1,27 @@
 const express = require('express');
 const path = require('path'); // Import path module
+const cors = require('cors'); // Import CORS package
 const app = express();
+
+// CORS Configuration
+const allowedOrigins = [
+  'http://localhost:3000', // For local development
+  'https://main.d11uqjcf0yrvya.amplifyapp.com', // Your Amplify frontend
+  'https://api.qpwoeirutysport.my.id' // Your custom backend domain
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true // If you need to handle cookies or authorization headers
+}));
 const adminRoutes = require('./routes/admin'); // Corrected path to adminRoutes
 const courseRoutes = require('./routes/courseRoutes'); // Assuming you have course routes for users
 const authRoutes = require('./routes/authRoutes'); // Assuming you have auth routes

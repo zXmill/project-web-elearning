@@ -5,6 +5,7 @@ const { User } = require('../models');
 const { Op } = require('sequelize'); // Import Op for query operators
 const sendEmail = require('../utils/email'); // Import the email utility
 const { authMiddleware } = require('../middleware/auth');
+const { uploadToS3 } = require('../utils/s3Service'); // Import S3 upload utility
 
 // Generate JWT Token
 const signToken = (id, role, email) => {
@@ -410,11 +411,9 @@ exports.uploadProfilePicture = async (req, res) => {
       });
     }
 
-    // Construct the path to be stored. Assuming 'uploads' is served statically at the root.
-    // e.g., if file is in backend/uploads/profile-pictures/user-id-timestamp.png
-    // and backend/uploads is served as /uploads, then path is /uploads/profile-pictures/filename
-    const profilePicturePath = `/uploads/profile-pictures/${req.file.filename}`;
-    user.profilePicture = profilePicturePath;
+    // Upload to S3
+    const s3UploadResult = await uploadToS3(req.file, 'profile-pictures');
+    user.profilePicture = s3UploadResult.url; // Store the S3 URL
     await user.save({ loggingContext: 'userProfileChange' });
 
     // Return updated user, excluding sensitive fields
