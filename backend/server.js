@@ -2,31 +2,29 @@
 const express = require('express');
 const session = require('express-session');
 const passport = require('./middleware/passport');
-// const cors = require('cors');
+const cors = require('cors'); // <--- UNCOMMENTED
 const path = require('path'); // Added path module
 const { sequelize, User } = require('./models'); // Added User model
 
 const app = express();
 
-// // CORS Configuration
-// const allowedOrigins = [
-//   'http://localhost:3000', // For local development
-//   'https://main.d11uqjcf0yrvya.amplifyapp.com', // Your Amplify frontend
-//   'https://api.qpwoeirutysport.my.id' // Your custom backend domain (if API is also accessed via this)
-// ];
+// CORS Configuration
+const allowedOrigins = [
+  'http://localhost:3000',                         // For local frontend development
+  'https://main.d350srbff0febm.amplifyapp.com',    // Your DEPLOYED Amplify frontend
+  'https://api.qpwoeirutysport.my.id'              // Your custom backend domain (if API is also accessed via this)
+  // Add any other specific domains if needed
+];
 
-// console.log('Allowed CORS origins on startup (from server.js):', allowedOrigins);
+console.log('Allowed CORS origins on startup (from server.js):', allowedOrigins);
 
-/*
-app.use(cors({
+app.use(cors({ // <--- UNCOMMENTED THIS BLOCK
   origin: function (origin, callback) {
     console.log('Incoming CORS request origin (server.js):', origin);
-    if (!origin) { // Allow requests with no origin (like mobile apps, curl, server-to-server)
-      console.log('CORS (server.js): No origin, allowing.');
-      return callback(null, true);
-    }
-    if (allowedOrigins.includes(origin)) {
-      console.log(`CORS (server.js): Origin ${origin} is in allowed list.`);
+    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    // OR if the origin is in our allowed list
+    if (!origin || allowedOrigins.includes(origin)) {
+      console.log(`CORS (server.js): Origin ${origin || 'none'} is allowed.`);
       return callback(null, true);
     } else {
       console.log(`CORS (server.js): Origin ${origin} is NOT in allowed list.`);
@@ -35,10 +33,9 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS", // Ensure OPTIONS is included for preflight
   allowedHeaders: "Content-Type,Authorization,X-Requested-With,Origin,Accept"
-}));
-*/
+})); // <--- UNCOMMENTED THIS BLOCK
 
 app.use(express.json());
 
@@ -77,7 +74,7 @@ app.use((err, req, res, next) => {
  // **Force sync untuk development - changed to false to persist data**
  sequelize.sync({ force: false }) // Changed force to false
    .then(async () => { // Made async to use await for user creation
-     console.log('✅ SQLite DB synced'); // Message updated to reflect sync type
+   // Message updated to reflect sync type
 
     const port = process.env.PORT || 3000; // Note: nodemon seems to be running it on 3001
      app.listen(port, () => console.log(`🚀 Server started on port ${port}`));
