@@ -339,7 +339,7 @@
               },
               {
                 "Name": "FRONTEND_URL",
-                "Value": "http://localhost:3000"
+                "Value": "https://main.d350srbff0febm.amplifyapp.com"
               },
               {
                 "Name": "GOOGLE_CLIENT_ID",
@@ -351,7 +351,7 @@
               },
               {
                 "Name": "GOOGLE_CALLBACK_URL",
-                "Value": "http://localhost:3001/api/auth/google/callback"
+                "Value": "https://api.qpwoeirutysport.my.id/api/auth/google/callback"
               },
               {
                 "Name": "EMAIL_SERVICE_PROVIDER",
@@ -390,6 +390,10 @@
                 "Value": {
                   "Ref": "AWS::Region"
                 }
+              },
+              {
+                "Name": "BACKEND_API_URL",
+                "Value": "https://api.qpwoeirutysport.my.id"
               }
             ]
           }

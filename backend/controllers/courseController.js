@@ -1,13 +1,43 @@
 const db = require('../models'); // Changed to import all models via db
+require('dotenv').config(); // Ensure .env variables are loaded
+
+// Helper function to convert relative image path to absolute URL
+const toAbsoluteUrl = (relativePath) => {
+  if (!relativePath) {
+    return null;
+  }
+  // If it's already an absolute URL, return it as is
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://')) {
+    return relativePath;
+  }
+  // Ensure BACKEND_API_URL is set and doesn't create double slashes
+  const baseApiUrl = process.env.BACKEND_API_URL || '';
+  // Remove trailing slash from baseApiUrl if present
+  const cleanBaseUrl = baseApiUrl.endsWith('/') ? baseApiUrl.slice(0, -1) : baseApiUrl;
+  // Remove leading slash from relativePath if present
+  const cleanRelativePath = relativePath.startsWith('/') ? relativePath.slice(1) : relativePath;
+  
+  return `${cleanBaseUrl}/${cleanRelativePath}`;
+};
 
 // Get all courses
 exports.getAllCourses = async (req, res) => {
   try {
-    const courses = await db.Course.findAll({ // Changed to db.Course
+    let courses = await db.Course.findAll({ // Changed to db.Course
       // You can add attributes to select specific fields if needed
       // attributes: ['id', 'judul', 'deskripsi', 'imageSrc'], // Example if imageSrc is added
       order: [['judul', 'ASC']], // Order by title
     });
+
+    // Convert imageSrc to absolute URL
+    courses = courses.map(course => {
+      const courseJson = course.toJSON(); // Work with a plain object
+      if (courseJson.imageSrc) {
+        courseJson.imageSrc = toAbsoluteUrl(courseJson.imageSrc);
+      }
+      return courseJson;
+    });
+
     res.status(200).json({
       status: 'success',
       results: courses.length,
@@ -50,11 +80,16 @@ exports.getCourseBySlugOrId = async (req, res) => {
     //   where: course.id ? { id: course.id } : { slug: course.slug }, // Re-fetch with associations
     //   include: [{ model: db.Module, as: 'modules', order: [['order', 'ASC']] }]
     // });
+    
+    const courseJson = course.toJSON(); // Work with a plain object
+    if (courseJson.imageSrc) {
+      courseJson.imageSrc = toAbsoluteUrl(courseJson.imageSrc);
+    }
 
     res.status(200).json({
       status: 'success',
       data: {
-        course: course, // Send the fetched course (or courseWithDetails if you re-fetch)
+        course: courseJson, // Send the modified course
       },
     });
   } catch (error) {
@@ -369,8 +404,17 @@ exports.getEnrolledCourses = async (req, res) => {
       order: [[{ model: db.Course, as: 'course' }, 'judul', 'ASC']] // Order by course title
     });
 
-    // Extract just the course data from enrollments
-    const courses = enrollments.map(enrollment => enrollment.course).filter(course => course != null);
+    // Extract just the course data from enrollments and convert imageSrc
+    let courses = enrollments.map(enrollment => {
+      if (enrollment.course) {
+        const courseJson = enrollment.course.toJSON();
+        if (courseJson.imageSrc) {
+          courseJson.imageSrc = toAbsoluteUrl(courseJson.imageSrc);
+        }
+        return courseJson;
+      }
+      return null;
+    }).filter(course => course != null);
 
     res.status(200).json({
       status: 'success',
