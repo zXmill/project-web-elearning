@@ -133,7 +133,7 @@ const Header = () => {
                     {user.profilePicture ? (
                       <img
                         className="h-8 w-8 rounded-full object-cover"
-                        src={user.profilePicture.startsWith('http') ? user.profilePicture : `${api.defaults.baseURL.replace('/api', '')}${user.profilePicture}`}
+                        src={user.profilePicture.startsWith('http') ? user.profilePicture : `${api.defaults.baseURL.replace('/api', '')}${user.profilePicture.startsWith('/') ? user.profilePicture : '/' + user.profilePicture}`}
                         alt="Profile"
                       />
                     ) : (

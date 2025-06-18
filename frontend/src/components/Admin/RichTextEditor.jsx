@@ -82,8 +82,17 @@ class RichTextEditor extends Component {
         });
 
         if (response.data && response.data.status === 'success' && response.data.data.url) {
-          const pdfUrl = response.data.data.url;
-          const fullPdfUrl = `${BACKEND_URL}${pdfUrl}`; // Construct full URL for iframe src
+          const pdfUrlFromServer = response.data.data.url;
+          let fullPdfUrl;
+
+          // Check if the URL from the server is already absolute
+          if (pdfUrlFromServer.startsWith('http://') || pdfUrlFromServer.startsWith('https://')) {
+            fullPdfUrl = pdfUrlFromServer;
+          } else {
+            // If relative, prepend BACKEND_URL. Ensure no double slashes if pdfUrlFromServer starts with /
+            const separator = pdfUrlFromServer.startsWith('/') ? '' : '/';
+            fullPdfUrl = `${BACKEND_URL}${separator}${pdfUrlFromServer}`;
+          }
 
           const quill = this.quillRef.current.getEditor();
           const range = quill.getSelection(true);

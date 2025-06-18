@@ -18,6 +18,12 @@ const allowedOrigins = [
 
 console.log('Allowed CORS origins on startup (from server.js):', allowedOrigins);
 
+app.use((req, res, next) => {
+  console.log('Received Headers (server.js):', JSON.stringify(req.headers, null, 2));
+  next();
+});
+// This should be before app.use(cors(corsOptions));
+
 app.use(cors({ // <--- UNCOMMENTED THIS BLOCK
   origin: function (origin, callback) {
     console.log('Incoming CORS request origin (server.js):', origin);
