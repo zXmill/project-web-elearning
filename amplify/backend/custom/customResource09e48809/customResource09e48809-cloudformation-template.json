@@ -1,0 +1,543 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "{\"createdOn\":\"Linux\",\"createdBy\":\"Amplify\",\"createdWith\":\"13.0.1\",\"stackType\":\"custom-customCloudformation\",\"metadata\":{\"whyContinueWithGen1\":\"I find the Gen 1 CLI easier to use\"}}",
+  "Parameters": {
+    "env": {
+      "Type": "String",
+      "Description": "The Amplify environment name (e.g., dev, prod)"
+    },
+    "ECRImageURI": {
+      "Type": "String",
+      "Description": "URI of the Docker image in ECR",
+      "Default": "068887785011.dkr.ecr.ap-southeast-2.amazonaws.com/elearning-backend-repo-dev:latest"
+    },
+    "ContainerPort": {
+      "Type": "Number",
+      "Description": "Port the container listens on",
+      "Default": 3001
+    },
+    "DesiredCount": {
+      "Type": "Number",
+      "Description": "Desired number of tasks for the ECS service",
+      "Default": 1
+    },
+    "Cpu": {
+      "Type": "String",
+      "Description": "CPU units for the Fargate task",
+      "Default": "256"
+    },
+    "Memory": {
+      "Type": "String",
+      "Description": "Memory in MiB for the Fargate task",
+      "Default": "512"
+    },
+    "ApiGatewayId": {
+      "Type": "String",
+      "Description": "ID of the existing API Gateway (HttpApi) - This needs to be correctly supplied by Amplify or manually.",
+      "Default": "2wat0r06ik"
+    }
+  },
+  "Resources": {
+    "ECSTaskExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": {
+          "Fn::Sub": "elearning-ecs-execution-role-${env}"
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "ecs-tasks.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        ],
+        "Policies": [
+          {
+            "PolicyName": "ECSTaskS3Access",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:GetObject",
+                    "s3:PutObject",
+                    "s3:DeleteObject",
+                    "s3:ListBucket"
+                  ],
+                  "Resource": [
+                    "arn:aws:s3:::elearning-storage-dev",
+                    "arn:aws:s3:::elearning-storage-dev/*"
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/ecs/elearning-backend-task-${env}:*"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "ECSCluster": {
+      "Type": "AWS::ECS::Cluster",
+      "Properties": {
+        "ClusterName": {
+          "Fn::Sub": "elearning-cluster-${env}"
+        }
+      }
+    },
+    "ALBSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": {
+          "Fn::Sub": "elearning-alb-sg-${env}"
+        },
+        "GroupDescription": "Security group for ALB",
+        "VpcId": "vpc-08e76376fa363ec78",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 80,
+            "ToPort": 80,
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "FargateServiceSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": {
+          "Fn::Sub": "elearning-fargate-sg-${env}"
+        },
+        "GroupDescription": "Security group for Fargate service",
+        "VpcId": "vpc-08e76376fa363ec78",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": {
+              "Ref": "ContainerPort"
+            },
+            "ToPort": {
+              "Ref": "ContainerPort"
+            },
+            "SourceSecurityGroupId": {
+              "Fn::GetAtt": [
+                "ALBSecurityGroup",
+                "GroupId"
+              ]
+            }
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "-1",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "ApplicationLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "elearning-alb-${env}"
+        },
+        "Subnets": [
+          "subnet-0b591cd259ffc3054",
+          "subnet-0b97e4a398c8f0e46"
+        ],
+        "SecurityGroups": [
+          {
+            "Fn::GetAtt": [
+              "ALBSecurityGroup",
+              "GroupId"
+            ]
+          }
+        ],
+        "Scheme": "internet-facing",
+        "Type": "application"
+      }
+    },
+    "ALBListenerHTTP": {
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties": {
+        "DefaultActions": [
+          {
+            "Type": "redirect",
+            "RedirectConfig": {
+              "Protocol": "HTTPS",
+              "Port": "443",
+              "StatusCode": "HTTP_301"
+            }
+          }
+        ],
+        "LoadBalancerArn": {
+          "Ref": "ApplicationLoadBalancer"
+        },
+        "Port": 80,
+        "Protocol": "HTTP"
+      }
+    },
+    "ALBListenerHTTPS": {
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties": {
+        "Certificates": [
+          {
+            "CertificateArn": "arn:aws:acm:ap-southeast-2:068887785011:certificate/1d6544b1-d044-4e03-adab-a7031ca55628"
+          }
+        ],
+        "DefaultActions": [
+          {
+            "Type": "forward",
+            "TargetGroupArn": {
+              "Ref": "ECSTargetGroup"
+            }
+          }
+        ],
+        "LoadBalancerArn": {
+          "Ref": "ApplicationLoadBalancer"
+        },
+        "Port": 443,
+        "Protocol": "HTTPS"
+      }
+    },
+    "ECSTargetGroup": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "elearning-tg-${env}"
+        },
+        "VpcId": "vpc-08e76376fa363ec78",
+        "Port": {
+          "Ref": "ContainerPort"
+        },
+        "Protocol": "HTTP",
+        "TargetType": "ip",
+        "HealthCheckPath": "/api/health",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 2,
+        "Matcher": {
+          "HttpCode": "200"
+        }
+      }
+    },
+    "ECSTaskDefinition": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": {
+          "Fn::Sub": "elearning-backend-task-${env}"
+        },
+        "RequiresCompatibilities": [
+          "FARGATE"
+        ],
+        "NetworkMode": "awsvpc",
+        "Cpu": {
+          "Ref": "Cpu"
+        },
+        "Memory": {
+          "Ref": "Memory"
+        },
+        "ExecutionRoleArn": {
+          "Fn::GetAtt": [
+            "ECSTaskExecutionRole",
+            "Arn"
+          ]
+        },
+        "TaskRoleArn": {
+          "Fn::GetAtt": [
+            "ECSTaskExecutionRole",
+            "Arn"
+          ]
+        },
+        "ContainerDefinitions": [
+          {
+            "Name": {
+              "Fn::Sub": "elearning-backend-container-${env}"
+            },
+            "Image": {
+              "Ref": "ECRImageURI"
+            },
+            "PortMappings": [
+              {
+                "ContainerPort": {
+                  "Ref": "ContainerPort"
+                },
+                "Protocol": "tcp"
+              }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": {
+                  "Fn::Sub": "/ecs/elearning-backend-task-${env}"
+                },
+                "awslogs-region": {
+                  "Ref": "AWS::Region"
+                },
+                "awslogs-stream-prefix": "ecs",
+                "awslogs-create-group": "true"
+              }
+            },
+            "Environment": [
+              {
+                "Name": "PORT",
+                "Value": {
+                  "Fn::Sub": "${ContainerPort}"
+                }
+              },
+              {
+                "Name": "NODE_ENV",
+                "Value": "production"
+              },
+              {
+                "Name": "DATABASE_URL",
+                "Value": "postgresql://postgres.audyohbwkjezrqltmlca:AdmilPass123@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres"
+              },
+              {
+                "Name": "SESSION_SECRET",
+                "Value": "someVerySecretString"
+              },
+              {
+                "Name": "JWT_SECRET",
+                "Value": "rahasia_yang_sangat_kuat_123!"
+              },
+              {
+                "Name": "JWT_EXPIRES_IN",
+                "Value": "1h"
+              },
+              {
+                "Name": "FRONTEND_URL",
+                "Value": "http://localhost:3000"
+              },
+              {
+                "Name": "GOOGLE_CLIENT_ID",
+                "Value": "812630285471-ga860g3l5q77gs68bn7pvjnv90gs2bkt.apps.googleusercontent.com"
+              },
+              {
+                "Name": "GOOGLE_CLIENT_SECRET",
+                "Value": "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"
+              },
+              {
+                "Name": "GOOGLE_CALLBACK_URL",
+                "Value": "http://localhost:3001/api/auth/google/callback"
+              },
+              {
+                "Name": "EMAIL_SERVICE_PROVIDER",
+                "Value": "brevo"
+              },
+              {
+                "Name": "EMAIL_HOST",
+                "Value": "smtp-relay.brevo.com"
+              },
+              {
+                "Name": "EMAIL_PORT",
+                "Value": "587"
+              },
+              {
+                "Name": "EMAIL_SECURE",
+                "Value": "false"
+              },
+              {
+                "Name": "EMAIL_USER",
+                "Value": "8e5c33001@smtp-brevo.com"
+              },
+              {
+                "Name": "EMAIL_PASS",
+                "Value": "ZEn4fAdTCymkXV8c"
+              },
+              {
+                "Name": "EMAIL_FROM",
+                "Value": "Teraplus <teraplusmail@gmail.com>"
+              },
+              {
+                "Name": "S3_BUCKET_NAME_PROD",
+                "Value": "elearning-storage-dev"
+              },
+              {
+                "Name": "AWS_REGION_PROD",
+                "Value": {
+                  "Ref": "AWS::Region"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "ECSService": {
+      "Type": "AWS::ECS::Service",
+      "Properties": {
+        "ServiceName": {
+          "Fn::Sub": "elearning-backend-service-${env}"
+        },
+        "Cluster": {
+          "Fn::GetAtt": [
+            "ECSCluster",
+            "Arn"
+          ]
+        },
+        "TaskDefinition": {
+          "Ref": "ECSTaskDefinition"
+        },
+        "DesiredCount": {
+          "Ref": "DesiredCount"
+        },
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": [
+              "subnet-0b591cd259ffc3054",
+              "subnet-0b97e4a398c8f0e46"
+            ],
+            "SecurityGroups": [
+              {
+                "Fn::GetAtt": [
+                  "FargateServiceSecurityGroup",
+                  "GroupId"
+                ]
+              }
+            ],
+            "AssignPublicIp": "ENABLED"
+          }
+        },
+        "LoadBalancers": [
+          {
+            "TargetGroupArn": {
+              "Ref": "ECSTargetGroup"
+            },
+            "ContainerName": {
+              "Fn::Sub": "elearning-backend-container-${env}"
+            },
+            "ContainerPort": {
+              "Ref": "ContainerPort"
+            }
+          }
+        ],
+        "DeploymentConfiguration": {
+          "MinimumHealthyPercent": 50,
+          "MaximumPercent": 200
+        },
+        "HealthCheckGracePeriodSeconds": 60
+      },
+      "DependsOn": [
+        "ALBListenerHTTPS"
+      ]
+    },
+    "APIGatewayVPCIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": {
+          "Ref": "ApiGatewayId"
+        },
+        "IntegrationType": "HTTP_PROXY",
+        "IntegrationUri": {
+          "Ref": "ALBListenerHTTPS"
+        },
+        "IntegrationMethod": "ANY",
+        "PayloadFormatVersion": "1.0",
+        "ConnectionType": "VPC_LINK",
+        "ConnectionId": {
+          "Ref": "VPCLink"
+        }
+      }
+    },
+    "VPCLink": {
+      "Type": "AWS::ApiGatewayV2::VpcLink",
+      "Properties": {
+        "Name": {
+          "Fn::Sub": "elearning-vpclink-${env}"
+        },
+        "SubnetIds": [
+          "subnet-0b591cd259ffc3054",
+          "subnet-0b97e4a398c8f0e46"
+        ],
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "ALBSecurityGroup",
+              "GroupId"
+            ]
+          }
+        ]
+      }
+    },
+    "ApiGatewayDefaultRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": {
+          "Ref": "ApiGatewayId"
+        },
+        "RouteKey": "$default",
+        "Target": {
+          "Fn::Join": [
+            "/",
+            [
+              "integrations",
+              {
+                "Ref": "APIGatewayVPCIntegration"
+              }
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "ALBDNSName": {
+      "Description": "DNS Name of the Application Load Balancer",
+      "Value": {
+        "Fn::GetAtt": [
+          "ApplicationLoadBalancer",
+          "DNSName"
+        ]
+      }
+    },
+    "ECSServiceName": {
+      "Description": "Name of the ECS Service",
+      "Value": {
+        "Fn::GetAtt": [
+          "ECSService",
+          "Name"
+        ]
+      }
+    },
+    "ECSClusterName": {
+      "Description": "Name of the ECS Cluster",
+      "Value": {
+        "Ref": "ECSCluster"
+      }
+    }
+  }
+}

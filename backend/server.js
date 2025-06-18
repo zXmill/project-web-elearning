@@ -2,26 +2,62 @@
 const express = require('express');
 const session = require('express-session');
 const passport = require('./middleware/passport');
-const cors = require('cors');
+// const cors = require('cors');
 const path = require('path'); // Added path module
 const { sequelize, User } = require('./models'); // Added User model
 
 const app = express();
 
+// // CORS Configuration
+// const allowedOrigins = [
+//   'http://localhost:3000', // For local development
+//   'https://main.d11uqjcf0yrvya.amplifyapp.com', // Your Amplify frontend
+//   'https://api.qpwoeirutysport.my.id' // Your custom backend domain (if API is also accessed via this)
+// ];
+
+// console.log('Allowed CORS origins on startup (from server.js):', allowedOrigins);
+
+/*
 app.use(cors({
-  origin: 'http://localhost:3000',
-  credentials: true
+  origin: function (origin, callback) {
+    console.log('Incoming CORS request origin (server.js):', origin);
+    if (!origin) { // Allow requests with no origin (like mobile apps, curl, server-to-server)
+      console.log('CORS (server.js): No origin, allowing.');
+      return callback(null, true);
+    }
+    if (allowedOrigins.includes(origin)) {
+      console.log(`CORS (server.js): Origin ${origin} is in allowed list.`);
+      return callback(null, true);
+    } else {
+      console.log(`CORS (server.js): Origin ${origin} is NOT in allowed list.`);
+      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
+      return callback(new Error(msg), false);
+    }
+  },
+  credentials: true,
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS",
+  allowedHeaders: "Content-Type,Authorization,X-Requested-With,Origin,Accept"
 }));
+*/
+
 app.use(express.json());
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // Serve static files from the 'public/uploads' directory, mapped to the '/uploads' URL path
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
  app.use(session({ secret: process.env.SESSION_SECRET, resave:false, saveUninitialized:false }));
  app.use(passport.initialize());
  app.use(passport.session());
+/*
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Headers', 'Authorization');
   next();
 });
+*/
  app.use('/api/auth', require('./routes/auth'));
  app.use('/api/courses', require('./routes/courseRoutes')); // Corrected to use courseRoutes.js
  app.use('/api/certificates', require('./routes/certificate'));

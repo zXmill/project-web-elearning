@@ -1,0 +1,20 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-elearningunesa-dev-4c6f2-authRole",
+      "UnauthRoleArn": "arn:aws:iam::068887785011:role/amplify-elearningunesa-dev-4c6f2-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::068887785011:role/amplify-elearningunesa-dev-4c6f2-authRole",
+      "Region": "ap-southeast-2",
+      "DeploymentBucketName": "amplify-elearningunesa-dev-4c6f2-deployment",
+      "UnauthRoleName": "amplify-elearningunesa-dev-4c6f2-unauthRole",
+      "StackName": "amplify-elearningunesa-dev-4c6f2",
+      "StackId": "arn:aws:cloudformation:ap-southeast-2:068887785011:stack/amplify-elearningunesa-dev-4c6f2/09364210-4b90-11f0-aed4-06575aa68b33",
+      "AmplifyAppId": "d350srbff0febm"
+    },
+    "categories": {
+      "custom": {
+        "customResource09e48809": {}
+      }
+    }
+  }
+}

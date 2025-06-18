@@ -10,11 +10,12 @@
     "logging": false
   },
   "production": {
-    "username": "YOUR_SUPABASE_USER",
-    "password": "YOUR_SUPABASE_PASSWORD",
-    "database": "YOUR_SUPABASE_DB_NAME",
-    "host": "YOUR_SUPABASE_HOST",
+    "username": "postgres.audyohbwkjezrqltmlca",
+    "password": "AdmilPass123",
+    "database": "postgres",
+    "host": "aws-0-ap-southeast-1.pooler.supabase.com",
     "port": 5432,
+    "pool_mode": "transaction",
     "dialect": "postgres",
     "dialectOptions": {
       "ssl": {
@@ -22,6 +23,7 @@
         "rejectUnauthorized": false
       }
     },
-    "logging": false
+    "logging": false,
+    "use_env_variable": "DATABASE_URL"
   }
 }

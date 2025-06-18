@@ -1,5 +1,9 @@
 const { Sequelize } = require('sequelize');
+const config = require('./config.json'); // Load the config file
 const path = require('path');
+
+const env = process.env.NODE_ENV || 'development';
+const dbConfig = config[env]; // Get the config for the current environment
 
 // Define the selective logger function
 const selectiveLogger = (sqlQuery, sequelizeQueryOptions) => {
@@ -9,21 +13,39 @@ const selectiveLogger = (sqlQuery, sequelizeQueryOptions) => {
     'userEnrollment',
     'userProfileChange',
     'adminChange',
-    // 'userCourseFinish' will be an application-level log, not a direct SQL log via this function
   ];
 
-  if (sequelizeQueryOptions && sequelizeQueryOptions.loggingContext) {
+  // Check if logging is enabled in the dbConfig for the current environment
+  if (dbConfig.logging && sequelizeQueryOptions && sequelizeQueryOptions.loggingContext) {
     if (allowedContexts.includes(sequelizeQueryOptions.loggingContext)) {
       console.log(`[SEQUELIZE_LOG][${sequelizeQueryOptions.loggingContext}] ${sqlQuery}`);
     }
   }
-  // No action for other cases (e.g., development logs for NO_CONTEXT) in this version
-  // to keep it clean and focused on the required logging.
-  // If no loggingContext is provided, or if it's not in allowedContexts, nothing is logged.
+  // If dbConfig.logging is a simple boolean true (and not a function),
+  // and you want general SQL logging for development without specific contexts:
+  else if (dbConfig.logging === true && env === 'development') {
+     // console.log(`[SEQUELIZE_DEV_LOG] ${sqlQuery}`); // Example for general dev logging
+  }
 };
 
-module.exports = new Sequelize({
-  dialect: 'sqlite',
-  storage: path.join(__dirname, '..', 'data', 'elearning.sqlite'),
-  logging: selectiveLogger, // Use the custom selective logger
-});
+let sequelize;
+if (dbConfig.use_env_variable) {
+  // If use_env_variable is set (like for DATABASE_URL in production)
+  sequelize = new Sequelize(process.env[dbConfig.use_env_variable], {
+    dialect: dbConfig.dialect, // Make sure dialect is passed
+    dialectOptions: dbConfig.dialectOptions, // Pass dialectOptions
+    logging: dbConfig.logging ? selectiveLogger : false,
+  });
+} else {
+  // Otherwise, use the detailed config (like for local development with SQLite)
+  sequelize = new Sequelize(dbConfig.database, dbConfig.username, dbConfig.password, {
+    host: dbConfig.host,
+    port: dbConfig.port,
+    dialect: dbConfig.dialect,
+    storage: dbConfig.storage, // For SQLite
+    dialectOptions: dbConfig.dialectOptions,
+    logging: dbConfig.logging ? selectiveLogger : false,
+  });
+}
+
+module.exports = sequelize;
