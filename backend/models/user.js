@@ -54,6 +54,30 @@ module.exports = (sequelize, DataTypes) => {
     lastLoginAt: { // Added lastLoginAt
       type: DataTypes.DATE,
       allowNull: true,
+    },
+    practicalTestAssigned: {
+      type: DataTypes.ENUM('Paha', 'Betis', 'Pinggang punggung', 'Lengan', 'Not Assigned'),
+      allowNull: true,
+      defaultValue: 'Not Assigned',
+    },
+    practicalTestStatus: {
+      type: DataTypes.ENUM('Not Assigned', 'Assigned', 'Submitted for Review', 'Approved', 'Rejected'),
+      allowNull: false,
+      defaultValue: 'Not Assigned',
+    },
+    certificateAdminApprovedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    certificateAdminApproverId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      references: {
+        model: 'Users',
+        key: 'id',
+      },
+      onUpdate: 'CASCADE',
+      onDelete: 'SET NULL',
     }
   }, {
     sequelize,
@@ -103,6 +127,13 @@ module.exports = (sequelize, DataTypes) => {
     User.hasMany(models.UserProgress, {
       foreignKey: 'userId',
       as: 'progressRecords',
+    });
+
+    // Association for admin approver
+    User.belongsTo(models.User, {
+      foreignKey: 'certificateAdminApproverId',
+      as: 'certificateApprover', // Admin who approved
+      constraints: false, // Optional: if you want to avoid issues with circular dependencies or if the approver might be deleted
     });
   };
 

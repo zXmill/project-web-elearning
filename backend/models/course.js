@@ -24,6 +24,10 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: 'FREE',
     },
+    waGroupLink: { // Added WA Group Link
+      type: DataTypes.STRING,
+      allowNull: true,
+    }
   }, { // Added options object for hooks
     hooks: {
       beforeCreate: (course, options) => {
@@ -76,6 +80,12 @@ module.exports = (sequelize, DataTypes) => {
     Course.hasMany(models.UserProgress, {
       foreignKey: 'courseId',
       as: 'userProgress',
+    });
+
+    // Course can have many Reviews
+    Course.hasMany(models.Review, {
+      foreignKey: 'courseId',
+      as: 'reviews',
     });
   };
 

@@ -216,6 +216,22 @@ router.delete(
   adminController.deleteUser
 );
 
+// Route to update user's practical test status and notes
+router.put(
+  '/users/:userId/practical-test',
+  authMiddleware,
+  isAdmin,
+  adminController.updateUserPracticalTest
+);
+
+// Route to approve a user's certificate
+router.put(
+  '/users/:userId/approve-certificate',
+  authMiddleware,
+  isAdmin,
+  adminController.approveUserCertificate
+);
+
 // --- Content PDF Upload for Rich Text Editor ---
 router.post(
   '/upload-content-pdf',

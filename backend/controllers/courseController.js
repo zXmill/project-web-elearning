@@ -567,6 +567,22 @@ exports.recordTestScore = async (req, res) => {
       await userProgress.save({ loggingContext: 'userProfileChange' }); // Context: user making progress (test score)
     }
 
+    // If this was a post-test and it was passed, assign practical test
+    if (testModule.type === 'POST_TEST_QUIZ') {
+      const course = await db.Course.findByPk(courseId);
+      if (course && score >= (course.minimumPostTestScore || 70)) {
+        const currentUser = await db.User.findByPk(userId);
+        if (currentUser) {
+          const practicalTests = ['Paha', 'Betis', 'Pinggang punggung', 'Lengan'];
+          const randomIndex = Math.floor(Math.random() * practicalTests.length);
+          currentUser.practicalTestAssigned = practicalTests[randomIndex];
+          currentUser.practicalTestStatus = 'Assigned';
+          await currentUser.save({ loggingContext: 'practicalTestAssignment' });
+          console.log(`User ${userId} passed post-test for course ${courseId} and was assigned practical test: ${currentUser.practicalTestAssigned}`);
+        }
+      }
+    }
+
     // Check for course completion after recording test score
     await checkAndLogCourseCompletion(userId, courseId);
     
@@ -705,7 +721,7 @@ async function getCertificateEligibilityData(userId, identifier) { // Changed co
   } else {
     course = await db.Course.findOne({ where: { slug: identifier } });
   }
-  const user = await db.User.findByPk(userId, { attributes: ['id', 'namaLengkap', 'email'] });
+  const user = await db.User.findByPk(userId, { attributes: ['id', 'namaLengkap', 'email', 'practicalTestStatus', 'certificateAdminApprovedAt', 'practicalTestAssigned'] }); // Added new attributes
 
   if (!course) {
     return { eligible: false, message: 'Kursus tidak ditemukan.', reasons: ['Kursus tidak ditemukan.'] };
@@ -785,6 +801,18 @@ async function getCertificateEligibilityData(userId, identifier) { // Changed co
   if (!enrollment) {
       eligible = false;
       reasons.push('Anda tidak terdaftar di kursus ini.');
+  }
+
+  // 6. Check Practical Test Status
+  if (user && user.practicalTestStatus !== 'Approved') { // Check if user exists
+    eligible = false;
+    reasons.push(`Status tes praktik (${user.practicalTestAssigned ? user.practicalTestAssigned + ' - ' : ''}${user.practicalTestStatus || 'Belum Ditugaskan'}) belum "Approved".`);
+  }
+
+  // 7. Check Admin Certificate Approval
+  if (user && !user.certificateAdminApprovedAt) { // Check if user exists
+    eligible = false;
+    reasons.push('Sertifikat belum mendapatkan approval dari admin.');
   }
 
   if (eligible) {

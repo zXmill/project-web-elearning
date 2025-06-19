@@ -32,6 +32,102 @@ exports.getDashboardSummary = async (req, res) => {
   }
 };
 
+// Controller to update a user's practical test status and admin notes
+exports.updateUserPracticalTest = async (req, res) => {
+  const { userId } = req.params;
+  const { practicalTestStatus, practicalTestAdminNotes } = req.body;
+
+  // Validate practicalTestStatus
+  const allowedStatuses = ['Assigned', 'Submitted', 'Pending Review', 'Approved', 'Rejected'];
+  if (practicalTestStatus && !allowedStatuses.includes(practicalTestStatus)) {
+    return res.status(400).json({
+      status: 'fail',
+      message: `Status tes praktik tidak valid. Harus salah satu dari: ${allowedStatuses.join(', ')}.`,
+    });
+  }
+
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ status: 'fail', message: 'Pengguna tidak ditemukan.' });
+    }
+
+    if (practicalTestStatus !== undefined) {
+      user.practicalTestStatus = practicalTestStatus;
+    }
+    if (practicalTestAdminNotes !== undefined) {
+      user.practicalTestAdminNotes = practicalTestAdminNotes;
+    }
+    // If status is 'Assigned' and no practicalTestAssigned yet, admin might need to set it via updateUser or another dedicated endpoint.
+    // This function primarily focuses on status and notes after assignment/submission.
+
+    await user.save({ loggingContext: 'adminChangePracticalTest' });
+
+    const userResponse = { ...user.toJSON() };
+    delete userResponse.password;
+    delete userResponse.googleId;
+    delete userResponse.passwordResetToken;
+    delete userResponse.passwordResetExpires;
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Status tes praktik pengguna berhasil diperbarui.',
+      data: { user: userResponse },
+    });
+  } catch (error) {
+    console.error(`Error updating practical test status for user ${userId}:`, error);
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        status: 'fail',
+        message: error.errors.map(e => e.message).join(', '),
+      });
+    }
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal memperbarui status tes praktik pengguna.',
+    });
+  }
+};
+
+// Controller to approve a user's certificate
+exports.approveUserCertificate = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ status: 'fail', message: 'Pengguna tidak ditemukan.' });
+    }
+
+    // Potentially check if user is eligible for certificate before approving (e.g., practicalTestStatus === 'Approved')
+    // For now, this endpoint directly approves.
+    // if (user.practicalTestStatus !== 'Approved') {
+    //   return res.status(400).json({ status: 'fail', message: 'Tes praktik pengguna belum "Approved". Tidak dapat menyetujui sertifikat.' });
+    // }
+
+    user.certificateAdminApprovedAt = new Date();
+    await user.save({ loggingContext: 'adminApproveCertificate' });
+
+    const userResponse = { ...user.toJSON() };
+    delete userResponse.password;
+    delete userResponse.googleId;
+    delete userResponse.passwordResetToken;
+    delete userResponse.passwordResetExpires;
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Sertifikat pengguna berhasil disetujui oleh admin.',
+      data: { user: userResponse },
+    });
+  } catch (error) {
+    console.error(`Error approving certificate for user ${userId}:`, error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal menyetujui sertifikat pengguna.',
+    });
+  }
+};
+
 // --- Site Settings ---
 exports.getSettings = async (req, res) => {
   try {
@@ -152,17 +248,45 @@ exports.uploadModulePdf = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.findAll({ 
-      attributes: { exclude: ['password', 'googleId', 'passwordResetToken', 'passwordResetExpires'] },
+      attributes: { 
+        exclude: ['password', 'googleId', 'passwordResetToken', 'passwordResetExpires'],
+        // Ensure new fields are included if not excluded by default or by a general exclude rule
+        // Explicitly including them if 'exclude' is too broad or to be certain.
+        // However, Sequelize typically includes all non-excluded fields.
+        // For clarity, if User model has many fields, specific include might be better.
+        // For now, relying on exclude to work as intended.
+        // If new fields are missing, will need to adjust attributes option.
+      },
+      // To be absolutely sure, we can list the fields to include:
+      // attributes: [
+      //   'id', 'namaLengkap', 'email', 'role', 'profilePicture', 'affiliasi', 'noHp', 
+      //   'isVerified', 'lastLoginAt', 'createdAt', 'updatedAt',
+      //   'practicalTestAssigned', 'practicalTestStatus', 'practicalTestFileUrl', 
+      //   'practicalTestAdminNotes', 'certificateAdminApprovedAt'
+      // ],
       order: [['id', 'ASC']] // Optional: order by ID or another field
+    });
+    // Map users to ensure new fields are present if they can be null and Sequelize might omit them
+    const usersWithAllFields = users.map(user => {
+      const userJson = user.toJSON();
+      return {
+        ...userJson,
+        practicalTestAssigned: userJson.practicalTestAssigned || null,
+        practicalTestStatus: userJson.practicalTestStatus || null,
+        practicalTestFileUrl: userJson.practicalTestFileUrl || null,
+        practicalTestAdminNotes: userJson.practicalTestAdminNotes || null,
+        certificateAdminApprovedAt: userJson.certificateAdminApprovedAt || null,
+      };
     });
     res.status(200).json({
       status: 'success',
-      results: users.length,
+      results: usersWithAllFields.length,
       data: {
-        users
+        users: usersWithAllFields
       }
     });
   } catch (error) {
+    console.error('Error fetching all users (admin):', error);
     res.status(500).json({
       status: 'error',
       message: 'Gagal mengambil data pengguna.'
