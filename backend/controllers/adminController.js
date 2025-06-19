@@ -32,6 +32,208 @@ exports.getDashboardSummary = async (req, res) => {
   }
 };
 
+// --- Certificate and Practical Test Management per Enrollment ---
+
+const INDONESIAN_PRACTICAL_TEST_STATUSES = [
+  'Belum Dikumpulkan',
+  'Sudah Dikumpulkan',
+  'Lulus Penilaian',
+  'Gagal Penilaian',
+  'Sertifikat Disetujui',
+  'Sertifikat Ditolak'
+];
+
+// New function: Get Enrollments for Approval
+exports.getEnrollmentsForApproval = async (req, res) => {
+  try {
+    const enrollmentsData = await Enrollment.findAll({
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'namaLengkap', 'email'] },
+        { model: Course, as: 'course', attributes: ['id', 'judul'] }
+      ],
+      order: [['createdAt', 'DESC']],
+      // Using raw:true and nest:true can simplify, but let's stick to standard Sequelize objects first
+      // to ensure all virtual getters and associations work as expected before .toJSON()
+    });
+
+    if (!enrollmentsData.length) {
+      return res.status(200).json({
+        status: 'success',
+        message: 'Tidak ada pendaftaran yang memerlukan persetujuan saat ini.',
+        data: { enrollments: [] }
+      });
+    }
+
+    // Get all unique userIds and courseIds from enrollments
+    const userIds = [...new Set(enrollmentsData.map(e => e.userId))];
+    const courseIds = [...new Set(enrollmentsData.map(e => e.courseId))];
+
+    // Fetch all relevant UserProgress records in one go
+    const userProgressRecords = await UserProgress.findAll({
+      where: {
+        userId: { [Op.in]: userIds },
+        courseId: { [Op.in]: courseIds }
+      },
+      attributes: ['userId', 'courseId', 'preTestScore', 'postTestScore', 'completedAt'],
+    });
+    
+    // Create a map for quick lookup of UserProgress
+    const userProgressMap = new Map();
+    userProgressRecords.forEach(up => {
+      userProgressMap.set(`${up.userId}-${up.courseId}`, up.toJSON());
+    });
+
+    // Combine enrollments with their UserProgress
+    const enrollmentsWithProgress = enrollmentsData.map(enrollment => {
+      const progress = userProgressMap.get(`${enrollment.userId}-${enrollment.courseId}`);
+      return {
+        ...enrollment.toJSON(),
+        userProgress: progress || null
+      };
+    });
+
+    res.status(200).json({
+      status: 'success',
+      data: { enrollments: enrollmentsWithProgress }
+    });
+  } catch (error) {
+    console.error('Error fetching enrollments for approval:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal mengambil data pendaftaran untuk persetujuan.'
+    });
+  }
+};
+
+// New function: Update Enrollment Practical Test Details
+exports.updateEnrollmentPracticalTestDetails = async (req, res) => {
+  const { enrollmentId } = req.params;
+  const { practicalTestStatus, practicalTestAdminNotes } = req.body;
+
+  if (practicalTestStatus && !INDONESIAN_PRACTICAL_TEST_STATUSES.includes(practicalTestStatus)) {
+    return res.status(400).json({
+      status: 'fail',
+      message: `Status tes praktik tidak valid. Harus salah satu dari: ${INDONESIAN_PRACTICAL_TEST_STATUSES.join(', ')}.`,
+    });
+  }
+
+  try {
+    const enrollment = await Enrollment.findByPk(enrollmentId);
+    if (!enrollment) {
+      return res.status(404).json({ status: 'fail', message: 'Pendaftaran tidak ditemukan.' });
+    }
+
+    let updated = false;
+    if (practicalTestStatus !== undefined) {
+      enrollment.practicalTestStatus = practicalTestStatus;
+      updated = true;
+    }
+    if (practicalTestAdminNotes !== undefined) {
+      enrollment.practicalTestAdminNotes = practicalTestAdminNotes;
+      updated = true;
+    }
+
+    if (updated) {
+      // Only update certificateStatusUpdatedAt if a relevant field is changed.
+      enrollment.certificateStatusUpdatedAt = new Date(); 
+      await enrollment.save({ loggingContext: `adminUpdateEnrollmentPracticalTest-${enrollmentId}` });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Detail tes praktik pendaftaran berhasil diperbarui.',
+      data: { enrollment: enrollment.toJSON() },
+    });
+  } catch (error) {
+    console.error(`Error updating practical test details for enrollment ${enrollmentId}:`, error);
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        status: 'fail',
+        message: error.errors.map(e => e.message).join(', '),
+      });
+    }
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal memperbarui detail tes praktik pendaftaran.',
+    });
+  }
+};
+
+// New function: Approve Enrollment Certificate
+exports.approveEnrollmentCertificate = async (req, res) => {
+  const { enrollmentId } = req.params;
+
+  try {
+    const enrollment = await Enrollment.findByPk(enrollmentId);
+    if (!enrollment) {
+      return res.status(404).json({ status: 'fail', message: 'Pendaftaran tidak ditemukan.' });
+    }
+
+    // Optional: Add eligibility checks, e.g., practicalTestStatus should be 'Lulus Penilaian'
+    // if (enrollment.practicalTestStatus !== 'Lulus Penilaian') {
+    //   return res.status(400).json({ status: 'fail', message: 'Tes praktik pendaftaran belum "Lulus Penilaian". Tidak dapat menyetujui sertifikat.' });
+    // }
+
+    enrollment.certificateAdminApprovedAt = new Date();
+    enrollment.practicalTestStatus = 'Sertifikat Disetujui';
+    enrollment.certificateRejectionReason = null; // Clear any previous rejection reason
+    enrollment.certificateStatusUpdatedAt = new Date();
+    
+    await enrollment.save({ loggingContext: `adminApproveEnrollmentCertificate-${enrollmentId}` });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Sertifikat untuk pendaftaran berhasil disetujui.',
+      data: { enrollment: enrollment.toJSON() },
+    });
+  } catch (error) {
+    console.error(`Error approving certificate for enrollment ${enrollmentId}:`, error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal menyetujui sertifikat untuk pendaftaran.',
+    });
+  }
+};
+
+// New function: Reject Enrollment Certificate
+exports.rejectEnrollmentCertificate = async (req, res) => {
+  const { enrollmentId } = req.params;
+  const { rejectionReason } = req.body;
+
+  if (!rejectionReason || typeof rejectionReason !== 'string' || rejectionReason.trim() === '') {
+    return res.status(400).json({
+      status: 'fail',
+      message: 'Alasan penolakan diperlukan dan tidak boleh kosong.',
+    });
+  }
+
+  try {
+    const enrollment = await Enrollment.findByPk(enrollmentId);
+    if (!enrollment) {
+      return res.status(404).json({ status: 'fail', message: 'Pendaftaran tidak ditemukan.' });
+    }
+
+    enrollment.certificateAdminApprovedAt = null; // Clear approval date
+    enrollment.practicalTestStatus = 'Sertifikat Ditolak';
+    enrollment.certificateRejectionReason = rejectionReason.trim();
+    enrollment.certificateStatusUpdatedAt = new Date();
+
+    await enrollment.save({ loggingContext: `adminRejectEnrollmentCertificate-${enrollmentId}` });
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Sertifikat untuk pendaftaran berhasil ditolak.',
+      data: { enrollment: enrollment.toJSON() },
+    });
+  } catch (error) {
+    console.error(`Error rejecting certificate for enrollment ${enrollmentId}:`, error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Gagal menolak sertifikat untuk pendaftaran.',
+    });
+  }
+};
+
 // Controller to update a user's practical test status and admin notes
 exports.updateUserPracticalTest = async (req, res) => {
   const { userId } = req.params;

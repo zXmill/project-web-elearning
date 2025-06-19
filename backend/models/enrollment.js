@@ -30,6 +30,31 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+    practicalTestStatus: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'Belum Dikumpulkan', // Indonesian for 'Not Submitted'
+    },
+    practicalTestFileUrl: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    practicalTestAdminNotes: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    certificateAdminApprovedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    certificateRejectionReason: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    certificateStatusUpdatedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
   }, {
     indexes: [
       {

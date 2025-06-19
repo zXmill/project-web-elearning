@@ -250,4 +250,37 @@ router.post(
   adminController.uploadModulePdf          // The new controller function we added
 );
 
+// --- Enrollment & Certificate Approval Routes ---
+// GET /api/admin/enrollments/approval - Get all enrollments for approval view
+router.get(
+  '/enrollments/approval',
+  authMiddleware,
+  isAdmin,
+  adminController.getEnrollmentsForApproval
+);
+
+// PUT /api/admin/enrollments/:enrollmentId/practical-test - Update practical test details for an enrollment
+router.put(
+  '/enrollments/:enrollmentId/practical-test',
+  authMiddleware,
+  isAdmin,
+  adminController.updateEnrollmentPracticalTestDetails
+);
+
+// PUT /api/admin/enrollments/:enrollmentId/approve-certificate - Approve certificate for an enrollment
+router.put(
+  '/enrollments/:enrollmentId/approve-certificate',
+  authMiddleware,
+  isAdmin,
+  adminController.approveEnrollmentCertificate
+);
+
+// PUT /api/admin/enrollments/:enrollmentId/reject-certificate - Reject certificate for an enrollment
+router.put(
+  '/enrollments/:enrollmentId/reject-certificate',
+  authMiddleware,
+  isAdmin,
+  adminController.rejectEnrollmentCertificate
+);
+
 module.exports = router;
