@@ -68,4 +68,45 @@ export const bulkCreateUsersAdmin = async (formData) => {
   }
 };
 
+// --- Admin Enrollment & Certificate Management ---
+export const getEnrollmentsForApprovalAdmin = async () => {
+  try {
+    const response = await api.get('/admin/enrollments/approval');
+    return response.data;
+  } catch (error) {
+    console.error('Error in getEnrollmentsForApprovalAdmin service call:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const updateEnrollmentPracticalTestDetailsAdmin = async (enrollmentId, data) => {
+  try {
+    const response = await api.put(`/admin/enrollments/${enrollmentId}/practical-test`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in updateEnrollmentPracticalTestDetailsAdmin service call:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const approveEnrollmentCertificateAdmin = async (enrollmentId) => {
+  try {
+    const response = await api.put(`/admin/enrollments/${enrollmentId}/approve-certificate`);
+    return response.data;
+  } catch (error) {
+    console.error('Error in approveEnrollmentCertificateAdmin service call:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
+export const rejectEnrollmentCertificateAdmin = async (enrollmentId, data) => {
+  try {
+    const response = await api.put(`/admin/enrollments/${enrollmentId}/reject-certificate`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error in rejectEnrollmentCertificateAdmin service call:', error.response?.data || error.message);
+    throw error;
+  }
+};
+
 export default api;

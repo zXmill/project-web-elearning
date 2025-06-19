@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { HomeIcon, UsersIcon, BookOpenIcon, DocumentTextIcon, CogIcon, ArrowLeftOnRectangleIcon, ArrowUturnLeftIcon } from '@heroicons/react/24/outline'; // Added ArrowUturnLeftIcon
+import { HomeIcon, UsersIcon, BookOpenIcon, DocumentTextIcon, CogIcon, ArrowLeftOnRectangleIcon, ArrowUturnLeftIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline'; // Added ArrowUturnLeftIcon and ClipboardDocumentCheckIcon
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -10,6 +10,7 @@ const AdminLayout = () => {
     { name: 'Users', href: '/admin/users', icon: UsersIcon },
     { name: 'Courses', href: '/admin/courses', icon: BookOpenIcon },
     { name: 'Content', href: '/admin/content', icon: DocumentTextIcon },
+    { name: 'Enrollment Approvals', href: '/admin/enrollment-management', icon: ClipboardDocumentCheckIcon },
     { name: 'Settings', href: '/admin/settings', icon: CogIcon },
   ];
 

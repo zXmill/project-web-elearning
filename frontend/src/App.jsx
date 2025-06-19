@@ -27,6 +27,7 @@ import ModuleListPage from './pages/ModuleListPage'; // Import ModuleListPage
 import CourseManagement from './components/Admin/CourseManagement'; // Import CourseManagement for admin courses
 import AdminContentPage from './pages/AdminContentPage'; // Import AdminContentPage
 import AdminSettingsPage from './pages/AdminSettingsPage'; // Import AdminSettingsPage
+import AdminEnrollmentManagementPage from './pages/AdminEnrollmentManagementPage'; // Import AdminEnrollmentManagementPage
 
 // Placeholder Admin Pages for routing
 const AdminContent = AdminContentPage;
@@ -230,6 +231,7 @@ export default function App() {
                   <Route path="courses" element={<CourseManagement />} /> {/* Replace placeholder with CourseManagement component */}
                   <Route path="content" element={<AdminContent />} />
                   <Route path="settings" element={<AdminSettingsPage />} /> {/* Use AdminSettingsPage */}
+                  <Route path="enrollment-management" element={<AdminEnrollmentManagementPage />} /> {/* New route for enrollment management */}
                   {/* Add other nested admin routes here as needed */}
                 </Route>
               </Route>
