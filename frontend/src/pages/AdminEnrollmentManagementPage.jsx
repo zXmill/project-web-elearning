@@ -31,8 +31,19 @@ const AdminEnrollmentManagementPage = () => {
   const fetchEnrollments = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getEnrollmentsForApprovalAdmin();
-      setEnrollments(data);
+      const response = await getEnrollmentsForApprovalAdmin();
+      // Ensure the response has the expected structure and enrollments is an array
+      if (response && response.data && Array.isArray(response.data.enrollments)) {
+        setEnrollments(response.data.enrollments);
+      } else {
+        // If the structure is not as expected, or enrollments is not an array,
+        // set to empty array to prevent .map error and log an issue.
+        console.error('Unexpected response structure or enrollments is not an array:', response);
+        setEnrollments([]);
+        // Optionally, set an error message for the user
+        // setError('Failed to load enrollment data in expected format.');
+        // toast.error('Failed to load enrollment data in expected format.');
+      }
       setError(null);
     } catch (err) {
       setError(err.message || 'Failed to fetch enrollments');
@@ -158,11 +169,13 @@ const AdminEnrollmentManagementPage = () => {
               {enrollments.map((enrollment) => (
                 <tr key={enrollment.id}>
                   <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{enrollment.User?.name || 'N/A'}</div>
-                    <div className="text-xs text-gray-500">{enrollment.User?.email || 'N/A'}</div>
+                    {/* Ensure enrollment.user exists before trying to access its properties */}
+                    <div className="text-sm font-medium text-gray-900">{enrollment.user?.namaLengkap || enrollment.User?.name || 'N/A'}</div>
+                    <div className="text-xs text-gray-500">{enrollment.user?.email || enrollment.User?.email || 'N/A'}</div>
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{enrollment.Course?.title || 'N/A'}</div>
+                    {/* Ensure enrollment.course exists */}
+                    <div className="text-sm text-gray-900">{enrollment.course?.judul || enrollment.Course?.title || 'N/A'}</div>
                   </td>
                   <td className={`px-4 py-4 whitespace-nowrap text-sm ${getStatusColor(enrollment.practicalTestStatus)}`}>
                     {enrollment.practicalTestStatus || 'N/A'}
@@ -227,7 +240,7 @@ const AdminEnrollmentManagementPage = () => {
           <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-md mx-auto">
             {modalAction === 'update_test' && (
               <>
-                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Update Practical Test for {selectedEnrollment.User?.name}</h3>
+                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Update Practical Test for {selectedEnrollment.user?.namaLengkap || selectedEnrollment.User?.name}</h3>
                 <form onSubmit={handleUpdatePracticalTest}>
                   <div className="mb-4">
                     <label htmlFor="practicalTestStatus" className="block text-sm font-medium text-gray-700">Practical Test Status</label>
@@ -276,7 +289,7 @@ const AdminEnrollmentManagementPage = () => {
             )}
             {modalAction === 'reject_cert' && (
               <>
-                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Reject Certificate for {selectedEnrollment.User?.name}</h3>
+                <h3 className="text-lg font-medium leading-6 text-gray-900 mb-4">Reject Certificate for {selectedEnrollment.user?.namaLengkap || selectedEnrollment.User?.name}</h3>
                 <form onSubmit={handleRejectCertificate}>
                   <div className="mb-4">
                     <label htmlFor="certificateRejectionReason" className="block text-sm font-medium text-gray-700">Rejection Reason</label>

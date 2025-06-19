@@ -1,5 +1,6 @@
 // Placeholder for admin-specific controller actions
-const { User, Course, Setting, Enrollment } = require('../models'); // Import User, Course, Setting, and Enrollment models
+const { User, Course, Setting, Enrollment, UserProgress, Module } = require('../models'); // Import User, Course, Setting, Enrollment, UserProgress, and Module models
+const { Op } = require('sequelize'); // Import Op for operators
 const bcrypt = require('bcryptjs'); // For hashing password if updated
 const xlsx = require('xlsx'); // For parsing Excel files
 const { uploadToS3 } = require('../utils/s3Service'); // Import S3 upload utility
@@ -52,8 +53,6 @@ exports.getEnrollmentsForApproval = async (req, res) => {
         { model: Course, as: 'course', attributes: ['id', 'judul'] }
       ],
       order: [['createdAt', 'DESC']],
-      // Using raw:true and nest:true can simplify, but let's stick to standard Sequelize objects first
-      // to ensure all virtual getters and associations work as expected before .toJSON()
     });
 
     if (!enrollmentsData.length) {
@@ -64,40 +63,75 @@ exports.getEnrollmentsForApproval = async (req, res) => {
       });
     }
 
-    // Get all unique userIds and courseIds from enrollments
-    const userIds = [...new Set(enrollmentsData.map(e => e.userId))];
-    const courseIds = [...new Set(enrollmentsData.map(e => e.courseId))];
+    const enrollmentsWithProgress = [];
 
-    // Fetch all relevant UserProgress records in one go
-    const userProgressRecords = await UserProgress.findAll({
-      where: {
-        userId: { [Op.in]: userIds },
-        courseId: { [Op.in]: courseIds }
-      },
-      attributes: ['userId', 'courseId', 'preTestScore', 'postTestScore', 'completedAt'],
-    });
-    
-    // Create a map for quick lookup of UserProgress
-    const userProgressMap = new Map();
-    userProgressRecords.forEach(up => {
-      userProgressMap.set(`${up.userId}-${up.courseId}`, up.toJSON());
-    });
+    for (const enrollment of enrollmentsData) {
+      const enrollmentJson = enrollment.toJSON();
+      let preTestScore = null;
+      let postTestScore = null;
+      let userCourseCompletedAt = null; // To store the completion time of the post-test
 
-    // Combine enrollments with their UserProgress
-    const enrollmentsWithProgress = enrollmentsData.map(enrollment => {
-      const progress = userProgressMap.get(`${enrollment.userId}-${enrollment.courseId}`);
-      return {
-        ...enrollment.toJSON(),
-        userProgress: progress || null
-      };
-    });
+      // Find pre-test module for this course
+      const preTestModule = await Module.findOne({
+        where: { courseId: enrollment.courseId, type: 'PRE_TEST_QUIZ' },
+        attributes: ['id']
+      });
+
+      if (preTestModule) {
+        const preTestProgress = await UserProgress.findOne({
+          where: {
+            userId: enrollment.userId,
+            // courseId: enrollment.courseId, // Not strictly needed if moduleId is unique, but good for clarity/indexing
+            moduleId: preTestModule.id
+          },
+          attributes: ['score'] 
+        });
+        if (preTestProgress) {
+          preTestScore = preTestProgress.score;
+        }
+      }
+
+      // Find post-test module for this course
+      const postTestModule = await Module.findOne({
+        where: { courseId: enrollment.courseId, type: 'POST_TEST_QUIZ' },
+        attributes: ['id']
+      });
+
+      if (postTestModule) {
+        const postTestProgress = await UserProgress.findOne({
+          where: {
+            userId: enrollment.userId,
+            // courseId: enrollment.courseId, // Not strictly needed if moduleId is unique
+            moduleId: postTestModule.id
+          },
+          attributes: ['score', 'completedAt']
+        });
+        if (postTestProgress) {
+          postTestScore = postTestProgress.score;
+          if (postTestProgress.completedAt) {
+            userCourseCompletedAt = postTestProgress.completedAt;
+          }
+        }
+      }
+      
+      enrollmentsWithProgress.push({
+        ...enrollmentJson,
+        userProgress: { 
+          preTestScore: preTestScore,
+          postTestScore: postTestScore,
+          completedAt: userCourseCompletedAt 
+        }
+      });
+    }
 
     res.status(200).json({
       status: 'success',
       data: { enrollments: enrollmentsWithProgress }
     });
+
   } catch (error) {
     console.error('Error fetching enrollments for approval:', error);
+    console.error(error.stack); // Log full stack trace
     res.status(500).json({
       status: 'error',
       message: 'Gagal mengambil data pendaftaran untuk persetujuan.'
@@ -854,8 +888,8 @@ exports.bulkCreateUsers = async (req, res) => {
 };
 
 // --- Get Recent Activities ---
-const { Op } = require('sequelize'); // Import Op for operators
-const { UserProgress, Module } = require('../models'); // Import UserProgress and Module
+// const { Op } = require('sequelize'); // Op is already imported at the top
+// const { UserProgress, Module } = require('../models'); // UserProgress and Module are now imported at the top
 
 exports.getRecentActivities = async (req, res) => {
   try {
