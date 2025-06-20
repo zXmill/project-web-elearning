@@ -9,7 +9,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Users', // Name of the Users table
+        model: 'Users',
         key: 'id',
       },
       onUpdate: 'CASCADE',
@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: 'Courses', // Name of the Courses table
+        model: 'Courses',
         key: 'id',
       },
       onUpdate: 'CASCADE',
@@ -33,7 +33,7 @@ module.exports = (sequelize, DataTypes) => {
     practicalTestStatus: {
       type: DataTypes.STRING,
       allowNull: true,
-      defaultValue: 'Belum Dikumpulkan', // Indonesian for 'Not Submitted'
+      defaultValue: 'Belum Dikumpulkan',
     },
     practicalTestFileUrl: {
       type: DataTypes.STRING,
@@ -55,6 +55,13 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATE,
       allowNull: true,
     },
+    assignedPracticalTest: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      validate: {
+        isIn: [['Paha', 'Betis', 'Pinggang punggung', 'Lengan']]
+      }
+    }
   }, {
     indexes: [
       {
@@ -69,7 +76,6 @@ module.exports = (sequelize, DataTypes) => {
         }
       },
       beforeUpdate: (enrollment, options) => {
-        // Enrollments are typically not updated, but hook is included for completeness
         if (options.loggingContext) {
           console.log(`[HOOKS] Enrollment: BeforeUpdate hook, context: ${options.loggingContext}, Enrollment ID: ${enrollment.id}`);
         }
@@ -84,7 +90,6 @@ module.exports = (sequelize, DataTypes) => {
           console.log(`[HOOKS] Enrollment: BeforeBulkCreate hook, context: ${options.loggingContext}, Number of Enrollments: ${enrollments.length}`);
         }
       }
-      // beforeBulkUpdate and beforeBulkDestroy are not directly supported with loggingContext in the same way.
     }
   });
 
