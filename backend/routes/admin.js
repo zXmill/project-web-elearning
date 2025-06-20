@@ -2,11 +2,11 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const enrollmentController = require('../controllers/enrollmentController');
-const authMiddleware = require('../middleware/auth');
-const adminAuthMiddleware = require('../middleware/adminAuth');
+const { authMiddleware, restrictTo } = require('../middleware/auth');
+const { isAdmin } = require('../middleware/adminAuth');
 
 router.use(authMiddleware);
-router.use(adminAuthMiddleware);
+router.use(isAdmin);
 
 router.get('/enrollments-for-approval', adminController.getEnrollmentsForApproval);
 router.post('/enrollments/:id/approve-practical-test', adminController.approvePracticalTest);
