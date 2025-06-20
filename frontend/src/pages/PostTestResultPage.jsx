@@ -3,9 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 function PostTestResultPage() {
-  const { courseId } = useParams();
+  const { identifier } = useParams(); // Correctly use 'identifier' from the route
   const [postTestScore, setPostTestScore] = useState(null);
   const [assignedPracticalTest, setAssignedPracticalTest] = useState(null);
+  const [enrollmentId, setEnrollmentId] = useState(null); // State to hold the enrollment ID
   const [practicalTestFile, setPracticalTestFile] = useState(null);
   const [uploadStatus, setUploadStatus] = useState('');
   const navigate = useNavigate();
@@ -13,9 +14,12 @@ function PostTestResultPage() {
   useEffect(() => {
     // Fetch post test score and assigned practical test
     async function fetchData() {
+      if (!identifier) return; // Do not fetch if identifier is not available
       try {
-        const response = await api.get(`/courses/${courseId}/posttest-result`);
+        const response = await api.get(`/courses/${identifier}/posttest-result`);
         setPostTestScore(response.data.score);
+        setEnrollmentId(response.data.enrollmentId); // Store the enrollment ID
+
         if (response.data.assignedPracticalTest) {
           setAssignedPracticalTest(response.data.assignedPracticalTest);
         } else {
@@ -28,7 +32,7 @@ function PostTestResultPage() {
       }
     }
     fetchData();
-  }, [courseId]);
+  }, [identifier]); // Depend on identifier
 
   const handleFileChange = (e) => {
     setPracticalTestFile(e.target.files[0]);
@@ -39,6 +43,10 @@ function PostTestResultPage() {
       alert('Please select a file to upload.');
       return;
     }
+    if (!enrollmentId) {
+      alert('Cannot submit, enrollment information is missing.');
+      return;
+    }
     setUploadStatus('Uploading...');
     try {
       // Upload file to server or S3 and get URL
@@ -46,7 +54,7 @@ function PostTestResultPage() {
       // TODO: Implement actual file upload to backend or S3
       const fileUrl = URL.createObjectURL(practicalTestFile);
 
-      await api.post(`/enrollments/${courseId}/submit-practical-test`, {
+      await api.post(`/enrollments/${enrollmentId}/submit-practical-test`, { // Use the correct enrollmentId
         practicalTestFileUrl: fileUrl,
       });
       setUploadStatus('Upload successful!');

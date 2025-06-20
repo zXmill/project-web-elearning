@@ -3,10 +3,15 @@ const { Op } = require('sequelize'); // Op from sequelize library
 
 // Get all modules for a specific course (admin view)
 exports.getModulesByCourse = async (req, res) => {
+  const { id: courseId } = req.params; // Changed to destructure 'id' as 'courseId'
+  console.log(`[moduleAdminController] Attempting to get modules for courseId: ${courseId} (type: ${typeof courseId}) from req.params.id`);
+
   try {
-    const { courseId } = req.params;
     const course = await Course.findByPk(courseId);
+    console.log(`[moduleAdminController] Result of Course.findByPk(${courseId}):`, course ? course.toJSON() : 'null');
+
     if (!course) {
+      console.error(`[moduleAdminController] Course with ID ${courseId} (from req.params.id) not found in DB for getModulesByCourse.`);
       return res.status(404).json({ status: 'fail', message: 'Kursus tidak ditemukan.' });
     }
 
@@ -29,7 +34,7 @@ exports.getModulesByCourse = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error(`Error fetching modules for course ${req.params.courseId}:`, error);
+    console.error(`Error fetching modules for course ${courseId} (from req.params.id):`, error);
     res.status(500).json({
       status: 'error',
       message: 'Gagal mengambil daftar modul.'
