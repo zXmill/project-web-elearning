@@ -9,9 +9,9 @@ router.use(authMiddleware);
 router.use(isAdmin);
 
 router.get('/enrollments-for-approval', adminController.getEnrollmentsForApproval);
-router.post('/enrollments/:id/approve-practical-test', adminController.approvePracticalTest);
-router.post('/enrollments/:id/reject-certificate', adminController.rejectCertificate);
-router.post('/enrollments/:id/approve-certificate', adminController.approveCertificate);
+router.post('/enrollments/:id/approve-practical-test', adminController.approveEnrollmentPracticalTestDetails);
+router.post('/enrollments/:id/reject-certificate', adminController.rejectEnrollmentCertificate);
+router.post('/enrollments/:id/approve-certificate', adminController.approveEnrollmentCertificate);
 router.get('/recent-activities', adminController.getRecentActivities);
 
 // New routes for practical test and reviews
