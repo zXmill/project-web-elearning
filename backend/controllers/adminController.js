@@ -10,7 +10,7 @@ exports.getDashboardSummary = async (req, res) => {
     const totalUsers = await User.count();
     const totalCourses = await Course.count();
     // Count all enrollments (active means enrolled)
-    const Enrollment = require('../models').Enrollment;
+    // Enrollment is already imported at the top of the file
     const activeEnrollments = await Enrollment.count();
 
     const summary = {
