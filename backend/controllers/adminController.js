@@ -1024,46 +1024,43 @@ exports.getAllCourses = async (req, res) => {
   }
 };
 
-// Get all courses (admin)
+// Get all courses (admin) - Refactored for stability
 exports.getAllCoursesAdmin = async (req, res) => {
   try {
-    const coursesData = await Course.findAll({
-      attributes: {
-        include: [
-          [Sequelize.fn('COUNT', Sequelize.col('modules.id')), 'moduleCount']
-        ]
-      },
-      include: [{
-        model: Module,
-        as: 'modules', // Ensure this alias matches your Course model's association
-        attributes: [], // No need to fetch module attributes, just for counting
-        required: false // Use LEFT JOIN to include courses with 0 modules
-      }],
-      // To prevent GROUP BY errors on strict SQL servers, all non-aggregated columns
-      // selected from the Course table must be included in the GROUP BY clause.
-      group: [
-        'Course.id', 'Course.judul', 'Course.deskripsi', 'Course.slug', 'Course.imageSrc',
-        'Course.area', 'Course.syaratDanKetentuan', 'Course.needsPreTest', 'Course.needsPostTest',
-        'Course.minimumPostTestScore', 'Course.prerequisites', 'Course.status', 'Course.waGroupLink',
-        'Course.createdAt', 'Course.updatedAt'
-      ],
+    // Step 1: Fetch all courses without complex joins
+    const courses = await Course.findAll({
       order: [['judul', 'ASC']],
-      subQuery: false // Important for COUNT with GROUP BY on includes
     });
 
-    // Sequelize might return moduleCount as a string, convert to integer
-    const courses = coursesData.map(course => {
+    // Step 2: Get module counts for all courses in a single, efficient query
+    const moduleCounts = await Module.findAll({
+      attributes: [
+        'courseId',
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'moduleCount']
+      ],
+      group: ['courseId'],
+      raw: true // Return plain data objects
+    });
+
+    // Create a map for quick lookup of module counts
+    const moduleCountMap = moduleCounts.reduce((acc, curr) => {
+      acc[curr.courseId] = parseInt(curr.moduleCount, 10);
+      return acc;
+    }, {});
+
+    // Step 3: Combine the data in JavaScript
+    const coursesWithModuleCount = courses.map(course => {
       const courseJson = course.toJSON();
       return {
         ...courseJson,
-        moduleCount: parseInt(courseJson.moduleCount, 10) || 0
+        moduleCount: moduleCountMap[course.id] || 0 // Assign count, default to 0 if no modules
       };
     });
 
     res.status(200).json({
       status: 'success',
-      results: courses.length,
-      data: { courses },
+      results: coursesWithModuleCount.length,
+      data: { courses: coursesWithModuleCount },
     });
   } catch (error) {
     console.error('Error fetching courses (admin):', error);

@@ -28,7 +28,7 @@ export default function LoginPage() {
       }
     } else {
       // login failed, errorAuth should be set in AuthContext
-      // Throw an error to be caught by LoginForm.jsx's handleSubmit
+      // Re-throw the original error to be caught by LoginForm.jsx's handleSubmit
       throw new Error(errorAuth || 'Login gagal. Silakan coba lagi.');
     }
   };
